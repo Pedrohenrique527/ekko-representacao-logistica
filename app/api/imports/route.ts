@@ -1,8 +1,7 @@
+import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
-import { prisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +18,8 @@ const payloadSchema = z.object({
 });
 
 function excelDate(value: unknown): Date | null {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
   if (typeof value === "string" && value.trim()) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? null : parsed; }
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    const parsed = new Date(Date.UTC(1899, 11, 30) + value * 86_400_000); return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return new Date(Date.UTC(1899, 11, 30) + value * 86_400_000);
   return null;
 }
 
@@ -37,36 +33,27 @@ export async function POST(request: Request) {
     const signedUser = await getChatGPTUser();
     const email = signedUser?.email ?? (process.env.NODE_ENV === "development" ? "pessoalpedro5@gmail.com" : null);
     if (!email) return NextResponse.json({ message: "Faça login novamente para importar a planilha." }, { status: 401 });
-    const existing = await prisma.importBatch.findUnique({ where: { fileHash: data.fileHash } });
-    if (existing) return NextResponse.json({ message: "Esta mesma planilha já foi importada.", importId: existing.id }, { status: 409 });
+    const connection = process.env.DATABASE_URL;
+    if (!connection) return NextResponse.json({ message: "O banco de dados não está configurado no ambiente publicado." }, { status: 503 });
+    const sql = neon(connection);
+    const existing = await sql`SELECT "id" FROM "ImportBatch" WHERE "fileHash" = ${data.fileHash} LIMIT 1`;
+    if (existing.length) return NextResponse.json({ message: "Esta mesma planilha já foi importada.", importId: existing[0].id }, { status: 409 });
 
-    const batch = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.upsert({
-        where: { email }, update: { name: signedUser?.displayName ?? "Usuário LogiSight" },
-        create: { email, name: signedUser?.displayName ?? "Usuário LogiSight", passwordHash: "SIWC_MANAGED", role: "ADMIN" },
-      });
-      const created = await tx.importBatch.create({ data: {
-        fileName: data.fileName, fileHash: data.fileHash, status: "PROCESSING", sheetsUsed: data.sheetsUsed,
-        rowsFound: data.rowsFound, rowsInserted: 0, totalExcel: new Prisma.Decimal(data.totalExcel), totalDatabase: new Prisma.Decimal(0),
-        integrityScore: new Prisma.Decimal(data.integrity), durationMs: data.durationMs, userId: user.id,
-      }});
-      await tx.order.createMany({ data: validOrders.map((order) => ({
-        externalOrder: order.order.trim(), client: order.client || null, supplier: order.supplier.trim(), carrier: order.carrier || null,
-        invoice: order.invoice || null, value: new Prisma.Decimal(order.value), sentAt: excelDate(order.sentAt), expectedAt: excelDate(order.expectedAt),
-        deliveredAt: excelDate(order.deliveredAt), deadlineStatus: order.deadlineStatus || null, deliveryStatus: order.deliveryStatus || null,
-        sourceSheet: order.sourceSheet, sourceRow: order.sourceRow, importBatchId: created.id,
-      })) });
-      if (data.issues.length) await tx.validationIssue.createMany({ data: data.issues.map((issue) => ({
-        type: issue.type, severity: issue.type === "duplicate" ? "warning" : "error", sourceSheet: issue.sheet,
-        sourceRow: issue.row, externalOrder: issue.order || null, message: issue.message, importBatchId: created.id,
-      })) });
-      await tx.auditLog.create({ data: { action: "IMPORT_COMPLETED", entity: "ImportBatch", entityId: created.id, userId: user.id,
-        metadata: { fileName: data.fileName, rowsFound: data.rowsFound, rowsInserted: validOrders.length } } });
-      return tx.importBatch.update({ where: { id: created.id }, data: {
-        status: "COMPLETED", rowsInserted: validOrders.length, totalDatabase: new Prisma.Decimal(totalDatabase),
-      }});
-    });
-    return NextResponse.json({ importId: batch.id, rowsInserted: batch.rowsInserted, totalDatabase: Number(batch.totalDatabase), integrity: Number(batch.integrityScore) });
+    const userRows = await sql`SELECT "id" FROM "User" WHERE "email" = ${email} LIMIT 1`;
+    const userId = userRows[0]?.id ?? crypto.randomUUID();
+    const batchId = crypto.randomUUID();
+    const name = signedUser?.displayName ?? "Usuário LogiSight";
+    const statements = [];
+    if (!userRows.length) statements.push(sql`INSERT INTO "User" ("id", "name", "email", "passwordHash", "role", "createdAt", "updatedAt") VALUES (${userId}, ${name}, ${email}, 'SIWC_MANAGED', 'ADMIN', NOW(), NOW())`);
+    statements.push(sql`INSERT INTO "ImportBatch" ("id", "fileName", "fileHash", "status", "sheetsUsed", "rowsFound", "rowsInserted", "totalExcel", "totalDatabase", "integrityScore", "durationMs", "userId", "createdAt") VALUES (${batchId}, ${data.fileName}, ${data.fileHash}, 'PROCESSING', ${data.sheetsUsed}, ${data.rowsFound}, 0, ${data.totalExcel}, 0, ${data.integrity}, ${data.durationMs}, ${userId}, NOW())`);
+    for (const order of validOrders) {
+      statements.push(sql`INSERT INTO "Order" ("id", "externalOrder", "client", "supplier", "carrier", "invoice", "value", "sentAt", "expectedAt", "deliveredAt", "deadlineStatus", "deliveryStatus", "sourceSheet", "sourceRow", "importBatchId", "createdAt") VALUES (${crypto.randomUUID()}, ${order.order.trim()}, ${order.client || null}, ${order.supplier.trim()}, ${order.carrier || null}, ${order.invoice || null}, ${order.value}, ${excelDate(order.sentAt)}, ${excelDate(order.expectedAt)}, ${excelDate(order.deliveredAt)}, ${order.deadlineStatus || null}, ${order.deliveryStatus || null}, ${order.sourceSheet}, ${order.sourceRow}, ${batchId}, NOW())`);
+    }
+    for (const issue of data.issues) statements.push(sql`INSERT INTO "ValidationIssue" ("id", "type", "severity", "sourceSheet", "sourceRow", "externalOrder", "message", "importBatchId", "createdAt") VALUES (${crypto.randomUUID()}, ${issue.type}, ${issue.type === "duplicate" ? "warning" : "error"}, ${issue.sheet}, ${issue.row}, ${issue.order || null}, ${issue.message}, ${batchId}, NOW())`);
+    statements.push(sql`UPDATE "ImportBatch" SET "status" = 'COMPLETED', "rowsInserted" = ${validOrders.length}, "totalDatabase" = ${totalDatabase} WHERE "id" = ${batchId}`);
+    statements.push(sql`INSERT INTO "AuditLog" ("id", "action", "entity", "entityId", "metadata", "userId", "createdAt") VALUES (${crypto.randomUUID()}, 'IMPORT_COMPLETED', 'ImportBatch', ${batchId}, ${JSON.stringify({ fileName: data.fileName, rowsFound: data.rowsFound, rowsInserted: validOrders.length })}::jsonb, ${userId}, NOW())`);
+    await sql.transaction(statements);
+    return NextResponse.json({ importId: batchId, rowsInserted: validOrders.length, totalDatabase, integrity: data.integrity });
   } catch (error) {
     console.error("Import failed", error);
     return NextResponse.json({ message: "Não foi possível gravar a importação. Nenhum dado parcial foi mantido." }, { status: 500 });
