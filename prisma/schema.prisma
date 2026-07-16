@@ -4,11 +4,21 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-enum UserRole { ADMIN USER MANAGER VIEWER }
-enum ImportStatus { PROCESSING VALIDATED COMPLETED FAILED }
+enum UserRole {
+  ADMIN
+  USER
+  MANAGER
+  VIEWER
+}
+
+enum ImportStatus {
+  PROCESSING
+  VALIDATED
+  COMPLETED
+  FAILED
+}
 
 model User {
   id          String       @id @default(cuid())

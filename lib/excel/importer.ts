@@ -25,6 +25,7 @@ export type AuditIssue = {
 };
 
 export type ImportResult = {
+  fileHash: string;
   sheetsUsed: string[];
   rowsFound: number;
   rowsAccepted: number;
@@ -153,7 +154,10 @@ const readSheet = async (xlsx: typeof import("xlsx"), workbook: WorkBook, sheetN
 export async function parseExcelFile(file: File): Promise<ImportResult> {
   const xlsxModule = await import("xlsx");
   const xlsx = (xlsxModule.default ?? xlsxModule) as typeof import("xlsx");
-  const workbook = xlsx.read(await file.arrayBuffer(), {
+  const bytes = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const fileHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const workbook = xlsx.read(bytes, {
     type: "array",
     cellFormula: true,
     cellDates: true,
@@ -177,6 +181,7 @@ export async function parseExcelFile(file: File): Promise<ImportResult> {
   const penalty = issues.length + missingColumns.length * 25 + Math.max(0, requested.length - sheetsUsed.length) * 50;
 
   return {
+    fileHash,
     sheetsUsed,
     rowsFound: orders.length,
     rowsAccepted,

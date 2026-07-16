@@ -205,6 +205,16 @@ function ImportView({ onResult }: { onResult: (result: ImportResult) => void }) 
       setStage("Localizando abas e cabeçalhos"); setProgress(34);
       await new Promise((resolve) => setTimeout(resolve, 80));
       const parsed = await parseExcelFile(selected);
+      setStage("Gravando dados no banco com segurança"); setProgress(72);
+      const response = await fetch("/api/imports", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...parsed, fileName: selected.name, durationMs: Date.now() - (startedAt ?? Date.now()) }),
+      });
+      const saved = await response.json() as { message?: string; rowsInserted?: number; totalDatabase?: number };
+      if (!response.ok) throw new Error(saved.message ?? "Não foi possível gravar a importação.");
+      parsed.rowsAccepted = saved.rowsInserted ?? parsed.rowsAccepted;
+      parsed.totalDatabase = saved.totalDatabase ?? parsed.totalDatabase;
       setStage("Gerando relatório de consistência"); setProgress(82);
       await new Promise((resolve) => setTimeout(resolve, 240));
       setResult(parsed); onResult(parsed); setProgress(100); setStage("Importação validada");
