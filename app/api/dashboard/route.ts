@@ -27,10 +27,12 @@ export async function GET() {
   try {
     if (!process.env.DATABASE_URL) return NextResponse.json(emptyDashboard, { headers: { "cache-control": "no-store" } });
     const sql = neon(process.env.DATABASE_URL);
-    const imports = await sql`SELECT "id", "fileName", "createdAt", "integrityScore" FROM "ImportBatch" WHERE "status" = 'COMPLETED' ORDER BY "createdAt" DESC LIMIT 1`;
+    const imports = await sql`SELECT "id", "fileName", "fileHash", "createdAt", "integrityScore", "rowsFound", "rowsInserted", "totalExcel", "totalDatabase" FROM "ImportBatch" WHERE "status" = 'COMPLETED' ORDER BY "createdAt" DESC LIMIT 1`;
     if (!imports.length) return NextResponse.json(emptyDashboard, { headers: { "cache-control": "no-store" } });
-    const latest = imports[0] as { id: string; fileName: string; createdAt: string; integrityScore: string | number };
-    const rows = await sql`SELECT "id", "externalOrder", "client", "supplier", "representative", "carrier", "invoice", "value", "sentAt", "expectedAt", "dueAt", "deliveredAt", "deadlineStatus", "deliveryStatus", "sourceSheet" FROM "Order" WHERE "importBatchId" = ${latest.id} ORDER BY "sourceRow" ASC` as DbOrder[];
+    const latest = imports[0] as { id: string; fileName: string; fileHash: string; createdAt: string; integrityScore: string | number; rowsFound: number; rowsInserted: number; totalExcel: string | number; totalDatabase: string | number };
+    const storedRows = await sql`SELECT "id", "externalOrder", "client", "supplier", "representative", "carrier", "invoice", "value", "sentAt", "expectedAt", "dueAt", "deliveredAt", "deadlineStatus", "deliveryStatus", "sourceSheet" FROM "Order" WHERE "importBatchId" = ${latest.id} ORDER BY "sourceRow" ASC` as DbOrder[];
+    const rows = storedRows.filter((row) => Boolean(row.externalOrder.trim() && row.supplier.trim()));
+    const issueRows = await sql`SELECT COUNT(*)::int AS "count" FROM "ValidationIssue" v LEFT JOIN "Order" o ON o."importBatchId"=v."importBatchId" AND o."sourceSheet"=v."sourceSheet" AND o."sourceRow"=v."sourceRow" WHERE v."importBatchId" = ${latest.id} AND (v."type" <> 'missing' OR COALESCE(o."externalOrder", '') <> '' OR COALESCE(o."supplier", '') <> '')` as { count: number }[];
     const statuses = rows.map(statusOf);
     const totalValue = rows.reduce((sum, row) => sum + Number(row.value), 0);
     const deliveredValue = rows.reduce((sum, row, i) => sum + (statuses[i] === "Entregue" ? Number(row.value) : 0), 0);
@@ -50,10 +52,20 @@ export async function GET() {
       hasData: true,
       latestImport: { fileName: latest.fileName, createdAt: new Date(latest.createdAt).toISOString(), integrity: Number(latest.integrityScore) },
       metrics: { total: rows.length, active: rows.length - delivered, delivered, onTime, expiring, overdue, other, totalValue, deliveredValue, pendingValue: totalValue - deliveredValue, averageTicket: rows.length ? totalValue / rows.length : 0 },
-      orders: rows.map((row, i) => ({ id: row.id, order: row.externalOrder, client: row.client ?? "—", supplier: row.supplier, representative: row.representative ?? "—", carrier: row.carrier ?? "—", invoice: row.invoice ?? "—", value: Number(row.value), status: statuses[i], sentAt: brDate(row.sentAt), dueAt: brDate(row.dueAt ?? row.expectedAt) })),
-      monthlyOrders: [...monthMap.entries()].sort((a, b) => a[1].sort - b[1].sort).slice(-12).map(([month, item]) => ({ month, pedidos: item.pedidos, valor: item.valor })),
+      orders: rows.map((row, i) => ({ id: row.id, order: row.externalOrder, client: row.client ?? "—", supplier: row.supplier, representative: row.representative ?? "—", carrier: row.carrier ?? "—", invoice: row.invoice ?? "—", value: Number(row.value), status: statuses[i], sentAt: brDate(row.sentAt), dueAt: brDate(row.dueAt ?? row.expectedAt), deliveredAt: brDate(row.deliveredAt), sourceSheet: row.sourceSheet })),
+      monthlyOrders: [...monthMap.entries()].sort((a, b) => a[1].sort - b[1].sort).map(([month, item]) => ({ month, pedidos: item.pedidos, valor: item.valor })),
       statusData: [{ name: "Entregues", value: delivered, color: "#3b82f6" }, { name: "No prazo", value: onTime, color: "#22c55e" }, { name: "Vencendo", value: expiring, color: "#f59e0b" }, { name: "Vencidos", value: overdue, color: "#ef4444" }, { name: "Outros", value: other, color: "#71717a" }],
       suppliers: [...supplierMap.entries()].map(([name, item]) => ({ name: name || "Sem fornecedor", value: item.value, orders: item.orders, late: item.late, sla: item.delivered ? Math.round((item.deliveredOnTime / item.delivered) * 1000) / 10 : 0 })).sort((a, b) => b.value - a.value),
+      proof: {
+        rowsExcel: latest.rowsFound,
+        rowsDatabase: latest.rowsInserted,
+        totalExcel: Number(latest.totalExcel),
+        totalDatabase: Number(latest.totalDatabase),
+        rowMatch: latest.rowsFound === latest.rowsInserted,
+        valueMatch: Math.abs(Number(latest.totalExcel) - Number(latest.totalDatabase)) < 0.01,
+        issueCount: issueRows[0]?.count ?? 0,
+        fileHashPrefix: latest.fileHash.slice(0, 12).toUpperCase(),
+      },
     };
     return NextResponse.json(result, { headers: { "cache-control": "no-store" } });
   } catch (error) {

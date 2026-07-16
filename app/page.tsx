@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LogisticsBI } from "@/components/logistics-bi";
+import { LogisticsBIV2 } from "@/components/logistics-bi-v2";
 
 export const metadata: Metadata = {
   title: "Ekko Representação Logística",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <LogisticsBI />;
+  return <LogisticsBIV2 />;
 }

@@ -12,6 +12,8 @@ export type Order = {
   status: OrderStatus;
   sentAt: string;
   dueAt: string;
+  deliveredAt: string;
+  sourceSheet: string;
 };
 
 export type SupplierSummary = { name: string; value: number; orders: number; sla: number; late: number };
@@ -29,13 +31,23 @@ export type DashboardData = {
   monthlyOrders: MonthlySummary[];
   statusData: StatusSummary[];
   suppliers: SupplierSummary[];
+  proof: {
+    rowsExcel: number;
+    rowsDatabase: number;
+    totalExcel: number;
+    totalDatabase: number;
+    rowMatch: boolean;
+    valueMatch: boolean;
+    issueCount: number;
+    fileHashPrefix: string;
+  } | null;
 };
 
 export const emptyDashboard: DashboardData = {
   hasData: false,
   latestImport: null,
   metrics: { total: 0, active: 0, delivered: 0, onTime: 0, expiring: 0, overdue: 0, other: 0, totalValue: 0, deliveredValue: 0, pendingValue: 0, averageTicket: 0 },
-  orders: [], monthlyOrders: [], suppliers: [],
+  orders: [], monthlyOrders: [], suppliers: [], proof: null,
   statusData: [
     { name: "Entregues", value: 0, color: "#3b82f6" },
     { name: "No prazo", value: 0, color: "#22c55e" },

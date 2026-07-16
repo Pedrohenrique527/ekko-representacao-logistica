@@ -118,6 +118,12 @@ const readSheet = async (xlsx: typeof import("xlsx"), workbook: WorkBook, sheetN
     const parsed = splitOrder(get("order"));
     const supplier = String(get("supplier") ?? "").trim();
     const value = parseValue(get("value"));
+    const carrier = String(get("carrier") ?? "").trim();
+    const invoice = String(get("invoice") ?? "").trim();
+    const deadlineStatus = String(get("deadlineStatus") ?? "").trim();
+    const deliveryStatus = String(get("deliveryStatus") ?? "").trim();
+    const meaningful = Boolean(parsed.order || supplier || carrier || invoice || deadlineStatus || deliveryStatus || value !== 0);
+    if (!meaningful) return;
 
     if (!parsed.order || !supplier) {
       issues.push({ type: "missing", row: sourceRow, sheet: sheetName, order: parsed.order || "—", message: "Pedido ou fornecedor obrigatório não informado." });
@@ -138,13 +144,13 @@ const readSheet = async (xlsx: typeof import("xlsx"), workbook: WorkBook, sheetN
       client: parsed.client,
       supplier,
       value: Number.isFinite(value) ? value : 0,
-      carrier: String(get("carrier") ?? "").trim(),
-      invoice: String(get("invoice") ?? "").trim(),
+      carrier,
+      invoice,
       sentAt: get("sentAt"),
       expectedAt: get("expectedAt"),
       deliveredAt: get("deliveredAt"),
-      deadlineStatus: String(get("deadlineStatus") ?? "").trim(),
-      deliveryStatus: String(get("deliveryStatus") ?? "").trim(),
+      deadlineStatus,
+      deliveryStatus,
     });
   });
 

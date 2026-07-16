@@ -29,10 +29,10 @@ export async function POST(request: Request) {
     const parsed = payloadSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ message: "Os dados da planilha não passaram pela validação de segurança." }, { status: 400 });
     const data = parsed.data;
-    const validOrders = data.orders;
+    const validOrders = data.orders.filter((order) => order.order.trim() && order.supplier.trim());
     const totalDatabase = validOrders.reduce((sum, order) => sum + order.value, 0);
     const signedUser = await getChatGPTUser();
-    const email = signedUser?.email ?? (process.env.NODE_ENV === "development" ? "pessoalpedro5@gmail.com" : null);
+    const email = signedUser?.email ?? process.env.APP_ALLOWED_EMAIL ?? (process.env.NODE_ENV === "development" ? "pessoalpedro5@gmail.com" : null);
     if (!email) return NextResponse.json({ message: "Faça login novamente para importar a planilha." }, { status: 401 });
     const connection = process.env.DATABASE_URL;
     if (!connection) return NextResponse.json({ message: "O banco de dados não está configurado no ambiente publicado." }, { status: 503 });
