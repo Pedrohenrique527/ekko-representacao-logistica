@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 
 export const dynamic = "force-dynamic";
+// The hosted runtime uses Neon HTTP transactions, which are compatible with the worker environment.
 
 const orderSchema = z.object({
   sourceSheet: z.string().min(1), sourceRow: z.number().int().positive(), order: z.string(), client: z.string(),
