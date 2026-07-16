@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity, AlertTriangle, ArrowDownToLine, BarChart3, Bell, Boxes,
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { money, number, cn } from "@/lib/utils";
-import { monthlyOrders, orders, statusData, suppliers, type OrderStatus } from "@/lib/dashboard-data";
+import { emptyDashboard, type DashboardData, type Order, type OrderStatus, type SupplierSummary } from "@/lib/dashboard-data";
 import { parseExcelFile, type ImportResult } from "@/lib/excel/importer";
 
 type PageId = "dashboard" | "orders" | "suppliers" | "import" | "audit" | "health" | "reports" | "history";
@@ -29,12 +29,12 @@ type PageId = "dashboard" | "orders" | "suppliers" | "import" | "audit" | "healt
 const nav = [
   { section: "VISÃO GERAL", items: [
     { id: "dashboard" as PageId, label: "Dashboard executivo", icon: LayoutDashboard },
-    { id: "orders" as PageId, label: "Pedidos", icon: Boxes, count: "1.569" },
+    { id: "orders" as PageId, label: "Pedidos", icon: Boxes },
     { id: "suppliers" as PageId, label: "Fornecedores", icon: Building2 },
   ]},
   { section: "DADOS & CONTROLE", items: [
     { id: "import" as PageId, label: "Importar planilha", icon: UploadCloud },
-    { id: "audit" as PageId, label: "Auditoria", icon: ClipboardCheck, count: "99,2%" },
+    { id: "audit" as PageId, label: "Auditoria", icon: ClipboardCheck },
     { id: "health" as PageId, label: "Saúde da base", icon: HeartPulse },
     { id: "history" as PageId, label: "Histórico", icon: History },
   ]},
@@ -89,23 +89,25 @@ function ChartHeader({ title, subtitle, action }: { title: string; subtitle: str
   );
 }
 
-function DashboardView({ navigate }: { navigate: (page: PageId) => void }) {
+function DashboardView({ navigate, data, loading }: { navigate: (page: PageId) => void; data: DashboardData; loading: boolean }) {
+  const { metrics, monthlyOrders, statusData, suppliers, orders } = data;
   return (
     <div className="space-y-4">
+      {!loading && !data.hasData && <Card className="border-amber-500/20 bg-amber-500/[.06] p-5"><div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 text-amber-300" size={18}/><div><h3 className="text-sm font-semibold text-amber-200">Nenhum dado real importado</h3><p className="mt-1 text-xs leading-5 text-zinc-400">Os indicadores permanecem zerados até uma planilha ser gravada e validada no banco. Nenhum número demonstrativo será exibido.</p></div></div></Card>}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-6">
-        <MetricCard label="Total de pedidos" value="1.569" trend="+12,4%" icon={PackageOpen} />
-        <MetricCard label="Pedidos ativos" value="631" trend="+8,2%" icon={Activity} tone="amber" />
-        <MetricCard label="Entregues" value="938" trend="+15,7%" icon={PackageCheck} tone="green" />
-        <MetricCard label="No prazo" value="407" icon={ShieldCheck} tone="green" />
-        <MetricCard label="Vencendo" value="96" icon={Clock3} tone="amber" />
-        <MetricCard label="Vencidos" value="128" icon={AlertTriangle} tone="red" />
+        <MetricCard label="Total de pedidos" value={number.format(metrics.total)} icon={PackageOpen} />
+        <MetricCard label="Pedidos ativos" value={number.format(metrics.active)} icon={Activity} tone="amber" />
+        <MetricCard label="Entregues" value={number.format(metrics.delivered)} icon={PackageCheck} tone="green" />
+        <MetricCard label="No prazo" value={number.format(metrics.onTime)} icon={ShieldCheck} tone="green" />
+        <MetricCard label="Vencendo" value={number.format(metrics.expiring)} icon={Clock3} tone="amber" />
+        <MetricCard label="Vencidos" value={number.format(metrics.overdue)} icon={AlertTriangle} tone="red" />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Valor movimentado" value="R$ 14,41 mi" icon={CircleDollarSign} />
-        <MetricCard label="Valor entregue" value="R$ 11,08 mi" icon={PackageCheck} tone="green" />
-        <MetricCard label="Valor pendente" value="R$ 3,33 mi" icon={Clock3} tone="amber" />
-        <MetricCard label="Ticket médio" value="R$ 9.185" trend="+3,1%" icon={TrendingUp} />
+        <MetricCard label="Valor movimentado" value={money.format(metrics.totalValue)} icon={CircleDollarSign} />
+        <MetricCard label="Valor entregue" value={money.format(metrics.deliveredValue)} icon={PackageCheck} tone="green" />
+        <MetricCard label="Valor pendente" value={money.format(metrics.pendingValue)} icon={Clock3} tone="amber" />
+        <MetricCard label="Ticket médio" value={money.format(metrics.averageTicket)} icon={TrendingUp} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
@@ -146,12 +148,12 @@ function DashboardView({ navigate }: { navigate: (page: PageId) => void }) {
         </Card>
       </div>
 
-      <OrdersTable compact onOpenAll={() => navigate("orders")} />
+      <OrdersTable orders={orders} compact onOpenAll={() => navigate("orders")} />
     </div>
   );
 }
 
-function OrdersTable({ compact = false, onOpenAll }: { compact?: boolean; onOpenAll?: () => void }) {
+function OrdersTable({ orders, compact = false, onOpenAll }: { orders: Order[]; compact?: boolean; onOpenAll?: () => void }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("Todos");
   const filtered = useMemo(() => orders.filter((order) => {
@@ -183,7 +185,7 @@ function OrdersTable({ compact = false, onOpenAll }: { compact?: boolean; onOpen
           <tbody className="divide-y divide-white/[.05]">{visible.map((order) => <tr key={order.id} className="group transition-colors hover:bg-white/[.025]"><td className="px-5 py-3.5 text-xs font-semibold text-blue-300">{order.order}</td><td className="max-w-[190px] truncate px-3 py-3.5 text-xs text-zinc-300">{order.client}</td><td className="px-3 py-3.5 text-xs text-zinc-400">{order.supplier}</td><td className="px-3 py-3.5 text-xs text-zinc-500">{order.invoice}</td><td className="px-3 py-3.5 text-xs font-medium text-zinc-200">{money.format(order.value)}</td><td className="px-3 py-3.5 text-xs text-zinc-500">{order.dueAt}</td><td className="px-3 py-3.5"><span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold", statusClasses[order.status])}>{order.status}</span></td><td className="px-5 py-3.5"><Button variant="ghost" size="icon" aria-label={`Abrir pedido ${order.order}`}><MoreHorizontal size={16}/></Button></td></tr>)}</tbody>
         </table>
       </div>
-      {!compact && <div className="flex items-center justify-between border-t border-white/[.06] px-5 py-3 text-xs text-zinc-600"><span>Exibindo {visible.length} de 1.569 registros</span><div className="flex items-center gap-1"><Button variant="ghost" size="icon"><ChevronLeft size={14}/></Button><span className="grid size-8 place-items-center rounded-md bg-blue-600 text-white">1</span><span className="grid size-8 place-items-center">2</span><span className="grid size-8 place-items-center">3</span><Button variant="ghost" size="icon"><ChevronRight size={14}/></Button></div></div>}
+      {!compact && <div className="flex items-center justify-between border-t border-white/[.06] px-5 py-3 text-xs text-zinc-600"><span>Exibindo {visible.length} registros confirmados no banco</span></div>}
     </Card>
   );
 }
@@ -259,12 +261,13 @@ function ImportView({ onResult }: { onResult: (result: ImportResult) => void }) 
 function MiniStat({ label, value, ok }: { label: string; value: string; ok: boolean }) { return <div className="rounded-lg border border-white/[.06] bg-[#0e0f11] p-3"><div className="flex items-center justify-between"><span className="text-[10px] text-zinc-600">{label}</span>{ok ? <Check size={13} className="text-emerald-400"/> : <X size={13} className="text-rose-400"/>}</div><p className="mt-2 text-lg font-semibold text-zinc-100">{value}</p></div>; }
 
 function AuditView({ result }: { result: ImportResult | null }) {
-  const integrity = result?.integrity ?? 99.2;
+  if (!result) return <Card className="p-8 text-center"><ClipboardCheck className="mx-auto text-zinc-600" size={28}/><h3 className="mt-4 text-sm font-semibold text-zinc-200">Nenhuma auditoria real disponível</h3><p className="mt-2 text-xs text-zinc-500">A auditoria será exibida somente depois que a planilha for gravada e confirmada no banco.</p></Card>;
+  const integrity = result?.integrity ?? 0;
   const checks = [
-    { label: "Linhas do Excel × banco", excel: result?.rowsFound ?? 1569, db: result?.rowsAccepted ?? 1569, ok: (result?.rowsFound ?? 1569) === (result?.rowsAccepted ?? 1569) },
-    { label: "Valor total", excel: money.format(result?.totalExcel ?? 14410996.57), db: money.format(result?.totalDatabase ?? 14410996.57), ok: true },
-    { label: "Abas obrigatórias", excel: result?.sheetsUsed.length ?? 2, db: "2 reconhecidas", ok: (result?.sheetsUsed.length ?? 2) === 2 },
-    { label: "Colunas obrigatórias", excel: result ? `${result.columnsFound.length} localizadas` : "10 localizadas", db: result?.missingColumns.length ? `${result.missingColumns.length} ausentes` : "Todas presentes", ok: !(result?.missingColumns.length) },
+    { label: "Linhas do Excel × banco", excel: result?.rowsFound ?? 0, db: result?.rowsAccepted ?? 0, ok: Boolean(result) && result.rowsFound === result.rowsAccepted },
+    { label: "Valor total", excel: money.format(result?.totalExcel ?? 0), db: money.format(result?.totalDatabase ?? 0), ok: Boolean(result) && result.totalExcel === result.totalDatabase },
+    { label: "Abas obrigatórias", excel: result?.sheetsUsed.length ?? 0, db: result ? `${result.sheetsUsed.length} reconhecidas` : "0 reconhecidas", ok: result?.sheetsUsed.length === 2 },
+    { label: "Colunas obrigatórias", excel: result ? `${result.columnsFound.length} localizadas` : "0 localizadas", db: result?.missingColumns.length ? `${result.missingColumns.length} ausentes` : result ? "Todas presentes" : "Aguardando importação", ok: Boolean(result) && !result?.missingColumns.length },
   ];
   return <div className="grid gap-4 xl:grid-cols-[.72fr_1.28fr]">
     <Card className="p-6"><div className="flex items-center gap-3"><div className="grid size-11 place-items-center rounded-xl bg-blue-500/10 text-blue-300"><ClipboardCheck size={21}/></div><div><p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Integridade da importação</p><p className="mt-1 text-sm font-semibold text-zinc-200">{result ? "Último arquivo processado" : "PEDIDOS ATÉ 16.9 (2).xlsx"}</p></div></div><div className="mt-8 flex justify-center"><div className="relative grid size-48 place-items-center rounded-full" style={{ background: `conic-gradient(#3b82f6 ${integrity * 3.6}deg,#202328 0)` }}><div className="grid size-[164px] place-items-center rounded-full bg-[#121316] text-center"><div><p className="text-4xl font-semibold tracking-tight text-white">{integrity}%</p><p className="mt-2 text-[10px] uppercase tracking-[.12em] text-emerald-400">Base confiável</p></div></div></div></div><div className="mt-8 rounded-lg border border-emerald-500/15 bg-emerald-500/[.07] p-3 text-xs leading-5 text-emerald-200">A importação está consistente e pronta para alimentar os painéis gerenciais.</div></Card>
@@ -272,19 +275,33 @@ function AuditView({ result }: { result: ImportResult | null }) {
   </div>;
 }
 
-function SuppliersView() { return <div className="space-y-4"><div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><MetricCard label="Fornecedores ativos" value="42" icon={Building2}/><MetricCard label="SLA médio" value="92,4%" trend="+1,8%" icon={ShieldCheck} tone="green"/><MetricCard label="Tempo médio" value="18,6 dias" icon={Clock3} tone="amber"/><MetricCard label="Pedidos em atraso" value="128" icon={AlertTriangle} tone="red"/></div><Card className="overflow-hidden"><ChartHeader title="Performance de fornecedores" subtitle="Ranking por valor, volume e nível de serviço" action="Últimos 12 meses"/><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px]"><thead><tr className="border-y border-white/[.055] text-left text-[10px] uppercase tracking-[.08em] text-zinc-600"><th className="px-5 py-3">Posição / Fornecedor</th><th className="px-3 py-3">Pedidos</th><th className="px-3 py-3">Valor total</th><th className="px-3 py-3">Vencidos</th><th className="px-3 py-3">SLA</th><th className="px-5 py-3">Performance</th></tr></thead><tbody className="divide-y divide-white/[.05]">{suppliers.map((s,i) => <tr key={s.name} className="hover:bg-white/[.02]"><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-lg bg-white/[.05] text-xs text-zinc-500">{i+1}</span><span className="text-xs font-medium text-zinc-200">{s.name}</span></div></td><td className="px-3 text-xs text-zinc-400">{s.orders}</td><td className="px-3 text-xs font-medium text-zinc-200">{money.format(s.value)}</td><td className="px-3 text-xs text-rose-300">{s.late}</td><td className="px-3 text-xs font-semibold text-emerald-300">{s.sla}%</td><td className="px-5"><div className="h-1.5 w-32 overflow-hidden rounded-full bg-white/[.06]"><div className="h-full rounded-full bg-emerald-500" style={{width:`${s.sla}%`}}/></div></td></tr>)}</tbody></table></div></Card></div>; }
+function SuppliersView({ suppliers }: { suppliers: SupplierSummary[] }) { const late = suppliers.reduce((sum, item) => sum + item.late, 0); const sla = suppliers.length ? suppliers.reduce((sum, item) => sum + item.sla, 0) / suppliers.length : 0; return <div className="space-y-4"><div className="grid grid-cols-2 gap-3 lg:grid-cols-3"><MetricCard label="Fornecedores ativos" value={number.format(suppliers.length)} icon={Building2}/><MetricCard label="SLA médio" value={`${sla.toFixed(1)}%`} icon={ShieldCheck} tone="green"/><MetricCard label="Pedidos em atraso" value={number.format(late)} icon={AlertTriangle} tone="red"/></div><Card className="overflow-hidden"><ChartHeader title="Performance de fornecedores" subtitle="Dados da última importação confirmada"/><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px]"><thead><tr className="border-y border-white/[.055] text-left text-[10px] uppercase tracking-[.08em] text-zinc-600"><th className="px-5 py-3">Posição / Fornecedor</th><th className="px-3 py-3">Pedidos</th><th className="px-3 py-3">Valor total</th><th className="px-3 py-3">Vencidos</th><th className="px-3 py-3">SLA</th><th className="px-5 py-3">Performance</th></tr></thead><tbody className="divide-y divide-white/[.05]">{suppliers.map((s,i) => <tr key={s.name} className="hover:bg-white/[.02]"><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-lg bg-white/[.05] text-xs text-zinc-500">{i+1}</span><span className="text-xs font-medium text-zinc-200">{s.name}</span></div></td><td className="px-3 text-xs text-zinc-400">{s.orders}</td><td className="px-3 text-xs font-medium text-zinc-200">{money.format(s.value)}</td><td className="px-3 text-xs text-rose-300">{s.late}</td><td className="px-3 text-xs font-semibold text-emerald-300">{s.sla}%</td><td className="px-5"><div className="h-1.5 w-32 overflow-hidden rounded-full bg-white/[.06]"><div className="h-full rounded-full bg-emerald-500" style={{width:`${s.sla}%`}}/></div></td></tr>)}</tbody></table>{!suppliers.length&&<p className="p-8 text-center text-xs text-zinc-500">Nenhum fornecedor importado.</p>}</div></Card></div>; }
 
-function HealthView() { const items = [{label:"Pedidos analisados",value:"1.569",tone:"blue"},{label:"Possíveis duplicados",value:"3",tone:"amber"},{label:"Sem fornecedor",value:"7",tone:"red"},{label:"Sem transportadora",value:"84",tone:"amber"},{label:"Datas inválidas",value:"2",tone:"red"},{label:"Valores inválidos",value:"1",tone:"red"}]; return <div className="grid gap-4 xl:grid-cols-[1fr_.72fr]"><Card className="p-5"><div className="flex items-center justify-between"><div><h3 className="text-sm font-semibold text-zinc-100">Diagnóstico da base</h3><p className="mt-1 text-xs text-zinc-600">Indicadores de qualidade da última importação</p></div><span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">Saúde 98,7%</span></div><div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3">{items.map((item) => <div key={item.label} className="rounded-xl border border-white/[.07] bg-[#0e0f11] p-4"><p className="text-[10px] uppercase tracking-[.08em] text-zinc-600">{item.label}</p><p className="mt-3 text-2xl font-semibold text-zinc-100">{item.value}</p></div>)}</div></Card><Card className="p-5"><div className="flex items-center gap-2 text-blue-300"><Sparkles size={17}/><h3 className="text-sm font-semibold">Sugestões de correção</h3></div><div className="mt-4 space-y-3">{["Revisar 3 pedidos com chave duplicada.","Completar transportadora em 84 registros.","Validar duas datas fora do padrão.","Confirmar um valor não numérico no Excel."].map((text,i)=><div key={text} className="flex gap-3 rounded-lg bg-white/[.025] p-3"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-blue-500/10 text-[10px] text-blue-300">{i+1}</span><p className="text-xs leading-5 text-zinc-400">{text}</p></div>)}</div></Card></div>; }
+function HealthView({ result }: { result: ImportResult | null }) { const issueCount = (type: string) => result?.issues.filter((issue) => issue.type === type).length ?? 0; const items = [{label:"Pedidos analisados",value:number.format(result?.rowsFound ?? 0)},{label:"Possíveis duplicados",value:String(issueCount("duplicate"))},{label:"Campos obrigatórios vazios",value:String(issueCount("missing"))},{label:"Datas inválidas",value:String(issueCount("invalid-date"))},{label:"Valores inválidos",value:String(issueCount("invalid-value"))}]; const suggestions = result?.issues.slice(0,4).map((issue)=>issue.message) ?? []; return <div className="grid gap-4 xl:grid-cols-[1fr_.72fr]"><Card className="p-5"><h3 className="text-sm font-semibold text-zinc-100">Diagnóstico da base</h3><p className="mt-1 text-xs text-zinc-600">Somente dados da importação atual validada</p><div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3">{items.map((item)=><div key={item.label} className="rounded-xl border border-white/[.07] bg-[#0e0f11] p-4"><p className="text-[10px] uppercase tracking-[.08em] text-zinc-600">{item.label}</p><p className="mt-3 text-2xl font-semibold text-zinc-100">{item.value}</p></div>)}</div></Card><Card className="p-5"><div className="flex items-center gap-2 text-blue-300"><Sparkles size={17}/><h3 className="text-sm font-semibold">Sugestões de correção</h3></div><div className="mt-4 space-y-3">{suggestions.length?suggestions.map((text,i)=><div key={`${text}-${i}`} className="flex gap-3 rounded-lg bg-white/[.025] p-3"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-blue-500/10 text-[10px] text-blue-300">{i+1}</span><p className="text-xs leading-5 text-zinc-400">{text}</p></div>):<p className="text-xs text-zinc-500">Importe uma planilha para gerar o diagnóstico real.</p>}</div></Card></div>; }
 
-function ReportsView() { const reports = [{name:"Relatório mensal",desc:"Pedidos, valores, status e evolução do mês",icon:BarChart3},{name:"Relatório financeiro",desc:"Movimentação, ticket e valores pendentes",icon:CircleDollarSign},{name:"Por fornecedor",desc:"Ranking, SLA e ocorrências por parceiro",icon:Building2},{name:"Por representante",desc:"Carteira, volume e performance individual",icon:Users},{name:"Relatório anual",desc:"Comparativos e tendências entre períodos",icon:TrendingUp},{name:"Por status",desc:"Detalhamento dos pedidos por situação",icon:Activity}]; return <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{reports.map(({name,desc,icon:Icon})=><Card key={name} className="group p-5 transition-colors hover:border-blue-500/25"><div className="flex items-start justify-between"><div className="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-300"><Icon size={19}/></div><Button variant="ghost" size="icon"><MoreHorizontal size={16}/></Button></div><h3 className="mt-5 text-sm font-semibold text-zinc-100">{name}</h3><p className="mt-2 text-xs leading-5 text-zinc-600">{desc}</p><div className="mt-5 flex gap-2"><Button size="sm" onClick={()=>toast.success("Relatório gerado",{description:"A versão PDF está pronta para exportação."})}><FileCheck2 size={14}/>Gerar PDF</Button><Button variant="secondary" size="sm" onClick={()=>toast.success("Planilha preparada")}><FileSpreadsheet size={14}/>Excel</Button></div></Card>)}</div>; }
+function ReportsView() { const reports = [{name:"Relatório mensal",desc:"Pedidos, valores, status e evolução do mês",icon:BarChart3},{name:"Relatório financeiro",desc:"Movimentação, ticket e valores pendentes",icon:CircleDollarSign},{name:"Por fornecedor",desc:"Ranking, SLA e ocorrências por parceiro",icon:Building2},{name:"Por representante",desc:"Carteira, volume e performance individual",icon:Users},{name:"Relatório anual",desc:"Comparativos e tendências entre períodos",icon:TrendingUp},{name:"Por status",desc:"Detalhamento dos pedidos por situação",icon:Activity}]; return <div><Card className="mb-4 border-amber-500/20 bg-amber-500/[.05] p-4 text-xs text-amber-200">Exportações serão liberadas somente após a validação completa dos dados reais.</Card><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{reports.map(({name,desc,icon:Icon})=><Card key={name} className="p-5"><div className="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-300"><Icon size={19}/></div><h3 className="mt-5 text-sm font-semibold text-zinc-100">{name}</h3><p className="mt-2 text-xs leading-5 text-zinc-600">{desc}</p><Button className="mt-5" size="sm" disabled><FileCheck2 size={14}/>Aguardando validação</Button></Card>)}</div></div>; }
 
-function HistoryView() { const rows = [{file:"PEDIDOS ATÉ 16.9 (2).xlsx",date:"16/09/2025 · 17:42",records:"1.569",time:"48 s",user:"Allan",status:"Concluída"},{file:"PEDIDOS ATÉ 09.9.xlsx",date:"09/09/2025 · 17:36",records:"1.521",time:"44 s",user:"Allan",status:"Concluída"},{file:"PEDIDOS ATÉ 02.9.xlsx",date:"02/09/2025 · 17:51",records:"1.486",time:"46 s",user:"Allan",status:"Concluída"}]; return <Card className="overflow-hidden"><ChartHeader title="Importações registradas" subtitle="O histórico é permanente e não pode ser excluído"/><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px]"><thead><tr className="border-y border-white/[.055] text-left text-[10px] uppercase tracking-[.08em] text-zinc-600"><th className="px-5 py-3">Arquivo</th><th className="px-3 py-3">Data e hora</th><th className="px-3 py-3">Registros</th><th className="px-3 py-3">Tempo</th><th className="px-3 py-3">Usuário</th><th className="px-5 py-3">Status</th></tr></thead><tbody className="divide-y divide-white/[.05]">{rows.map(row=><tr key={row.file}><td className="px-5 py-4"><div className="flex items-center gap-3"><FileSpreadsheet size={16} className="text-emerald-400"/><span className="text-xs font-medium text-zinc-200">{row.file}</span></div></td><td className="px-3 text-xs text-zinc-500">{row.date}</td><td className="px-3 text-xs text-zinc-300">{row.records}</td><td className="px-3 text-xs text-zinc-500">{row.time}</td><td className="px-3 text-xs text-zinc-400">{row.user}</td><td className="px-5"><span className="rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">{row.status}</span></td></tr>)}</tbody></table></div></Card>; }
+function HistoryView({ data }: { data: DashboardData }) { const row = data.latestImport; return <Card className="overflow-hidden"><ChartHeader title="Importações registradas" subtitle="Somente importações confirmadas no PostgreSQL"/><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[640px]"><thead><tr className="border-y border-white/[.055] text-left text-[10px] uppercase tracking-[.08em] text-zinc-600"><th className="px-5 py-3">Arquivo</th><th className="px-3 py-3">Data e hora</th><th className="px-3 py-3">Registros</th><th className="px-5 py-3">Status</th></tr></thead><tbody>{row&&<tr><td className="px-5 py-4 text-xs font-medium text-zinc-200">{row.fileName}</td><td className="px-3 text-xs text-zinc-500">{new Date(row.createdAt).toLocaleString("pt-BR")}</td><td className="px-3 text-xs text-zinc-300">{number.format(data.metrics.total)}</td><td className="px-5"><span className="rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">Confirmada</span></td></tr>}</tbody></table>{!row&&<p className="p-8 text-center text-xs text-zinc-500">Nenhuma importação real registrada.</p>}</div></Card>; }
 
 export function LogisticsBI() {
   const [page, setPage] = useState<PageId>("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [auditResult, setAuditResult] = useState<ImportResult | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const refreshDashboard = async () => {
+    setDashboardLoading(true);
+    try {
+      const response = await fetch("/api/dashboard", { cache: "no-store" });
+      if (!response.ok) throw new Error("Falha ao consultar o banco");
+      setDashboard(await response.json() as DashboardData);
+    } catch {
+      setDashboard(emptyDashboard);
+      toast.error("Não foi possível consultar os dados reais", { description: "Os indicadores foram zerados para não exibir informações incorretas." });
+    } finally { setDashboardLoading(false); }
+  };
+  useEffect(() => { void refreshDashboard(); }, []);
   const info = pageTitles[page];
   const navigate = (next: PageId) => { setPage(next); setMobileOpen(false); };
   return <div className="min-h-screen bg-[#090a0c] text-zinc-100"><Toaster theme="dark" richColors position="top-right"/>
@@ -295,8 +312,8 @@ export function LogisticsBI() {
     </aside>
     <AnimatePresence>{mobileOpen&&<motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm lg:hidden" onClick={()=>setMobileOpen(false)}><motion.aside initial={{x:-280}} animate={{x:0}} exit={{x:-280}} onClick={(e)=>e.stopPropagation()} className="h-full w-[260px] border-r border-white/10 bg-[#0d0e10] p-4"><div className="mb-5 flex items-center justify-between"><p className="font-bold">Logi<span className="text-blue-400">Sight</span></p><Button variant="ghost" size="icon" onClick={()=>setMobileOpen(false)}><X size={17}/></Button></div>{nav.flatMap(g=>g.items).map((item)=>{const Icon=item.icon;return <button key={item.id} onClick={()=>navigate(item.id)} className={cn("mb-1 flex h-11 w-full items-center gap-3 rounded-lg px-3 text-xs",page===item.id?"bg-blue-500/15 text-blue-200":"text-zinc-500")}><Icon size={16}/>{item.label}</button>})}</motion.aside></motion.div>}</AnimatePresence>
     <main className={cn("min-h-screen transition-[padding] duration-300",collapsed?"lg:pl-[76px]":"lg:pl-[238px]")}>
-      <header className="sticky top-0 z-30 flex h-[70px] items-center justify-between border-b border-white/[.06] bg-[#090a0c]/90 px-4 backdrop-blur-xl sm:px-6"><div className="flex items-center gap-3"><Button variant="ghost" size="icon" className="lg:hidden" onClick={()=>setMobileOpen(true)}><Menu size={18}/></Button><div><h1 className="text-base font-semibold tracking-tight text-zinc-100">{info.title}</h1><p className="mt-0.5 hidden text-[10px] text-zinc-600 sm:block">{info.subtitle}</p></div></div><div className="flex items-center gap-2"><div className="hidden items-center gap-2 rounded-lg border border-white/[.07] bg-white/[.025] px-3 py-2 text-[10px] text-zinc-500 md:flex"><Database size={13} className="text-emerald-400"/><span>Base atualizada</span><span className="text-zinc-700">há 4 min</span></div><Button variant="ghost" size="icon" aria-label="Notificações" className="relative"><Bell size={16}/><span className="absolute right-2 top-2 size-1.5 rounded-full bg-blue-400"/></Button><div className="ml-1 flex items-center gap-2 border-l border-white/[.07] pl-3"><div className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-900 text-[10px] font-bold">AR</div><div className="hidden sm:block"><p className="text-[11px] font-medium text-zinc-300">Allan Rodrigues</p><p className="text-[9px] text-zinc-700">Operações</p></div><ChevronDown size={13} className="text-zinc-700"/></div></div></header>
-      <div className="p-4 sm:p-6"><AnimatePresence mode="wait"><motion.div key={page} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-4}} transition={{duration:.18}}>{page==="dashboard"&&<DashboardView navigate={navigate}/>} {page==="orders"&&<OrdersTable/>} {page==="suppliers"&&<SuppliersView/>} {page==="import"&&<ImportView onResult={(result)=>{setAuditResult(result);}}/>} {page==="audit"&&<AuditView result={auditResult}/>} {page==="health"&&<HealthView/>} {page==="reports"&&<ReportsView/>} {page==="history"&&<HistoryView/>}</motion.div></AnimatePresence></div>
+      <header className="sticky top-0 z-30 flex h-[70px] items-center justify-between border-b border-white/[.06] bg-[#090a0c]/90 px-4 backdrop-blur-xl sm:px-6"><div className="flex items-center gap-3"><Button variant="ghost" size="icon" className="lg:hidden" onClick={()=>setMobileOpen(true)}><Menu size={18}/></Button><div><h1 className="text-base font-semibold tracking-tight text-zinc-100">{info.title}</h1><p className="mt-0.5 hidden text-[10px] text-zinc-600 sm:block">{info.subtitle}</p></div></div><div className="flex items-center gap-2"><div className="hidden items-center gap-2 rounded-lg border border-white/[.07] bg-white/[.025] px-3 py-2 text-[10px] text-zinc-500 md:flex"><Database size={13} className={dashboard.hasData?"text-emerald-400":"text-amber-400"}/><span>{dashboard.hasData?"Dados confirmados no PostgreSQL":"Aguardando importação real"}</span></div></div></header>
+      <div className="p-4 sm:p-6"><AnimatePresence mode="wait"><motion.div key={page} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-4}} transition={{duration:.18}}>{page==="dashboard"&&<DashboardView navigate={navigate} data={dashboard} loading={dashboardLoading}/>} {page==="orders"&&<OrdersTable orders={dashboard.orders}/>} {page==="suppliers"&&<SuppliersView suppliers={dashboard.suppliers}/>} {page==="import"&&<ImportView onResult={(result)=>{setAuditResult(result); void refreshDashboard();}}/>} {page==="audit"&&<AuditView result={auditResult}/>} {page==="health"&&<HealthView result={auditResult}/>} {page==="reports"&&<ReportsView/>} {page==="history"&&<HistoryView data={dashboard}/>}</motion.div></AnimatePresence></div>
     </main>
   </div>;
 }
