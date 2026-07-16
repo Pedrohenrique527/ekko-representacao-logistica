@@ -44,13 +44,22 @@ export async function POST(request: Request) {
     const userId = userRows[0]?.id ?? crypto.randomUUID();
     const batchId = crypto.randomUUID();
     const name = signedUser?.displayName ?? "Usuário LogiSight";
+    const orderPayload = validOrders.map((order) => ({
+      id: crypto.randomUUID(), external_order: order.order.trim(), client: order.client || null, supplier: order.supplier.trim(),
+      carrier: order.carrier || null, invoice: order.invoice || null, value: order.value, sent_at: excelDate(order.sentAt)?.toISOString() ?? null,
+      expected_at: excelDate(order.expectedAt)?.toISOString() ?? null, delivered_at: excelDate(order.deliveredAt)?.toISOString() ?? null,
+      deadline_status: order.deadlineStatus || null, delivery_status: order.deliveryStatus || null,
+      source_sheet: order.sourceSheet, source_row: order.sourceRow, import_batch_id: batchId,
+    }));
+    const issuePayload = data.issues.map((issue) => ({
+      id: crypto.randomUUID(), type: issue.type, severity: issue.type === "duplicate" ? "warning" : "error",
+      source_sheet: issue.sheet, source_row: issue.row, external_order: issue.order || null, message: issue.message, import_batch_id: batchId,
+    }));
     const statements = [];
     if (!userRows.length) statements.push(sql`INSERT INTO "User" ("id", "name", "email", "passwordHash", "role", "createdAt", "updatedAt") VALUES (${userId}, ${name}, ${email}, 'SIWC_MANAGED', 'ADMIN', NOW(), NOW())`);
     statements.push(sql`INSERT INTO "ImportBatch" ("id", "fileName", "fileHash", "status", "sheetsUsed", "rowsFound", "rowsInserted", "totalExcel", "totalDatabase", "integrityScore", "durationMs", "userId", "createdAt") VALUES (${batchId}, ${data.fileName}, ${data.fileHash}, 'PROCESSING', ${data.sheetsUsed}, ${data.rowsFound}, 0, ${data.totalExcel}, 0, ${data.integrity}, ${data.durationMs}, ${userId}, NOW())`);
-    for (const order of validOrders) {
-      statements.push(sql`INSERT INTO "Order" ("id", "externalOrder", "client", "supplier", "carrier", "invoice", "value", "sentAt", "expectedAt", "deliveredAt", "deadlineStatus", "deliveryStatus", "sourceSheet", "sourceRow", "importBatchId", "createdAt") VALUES (${crypto.randomUUID()}, ${order.order.trim()}, ${order.client || null}, ${order.supplier.trim()}, ${order.carrier || null}, ${order.invoice || null}, ${order.value}, ${excelDate(order.sentAt)}, ${excelDate(order.expectedAt)}, ${excelDate(order.deliveredAt)}, ${order.deadlineStatus || null}, ${order.deliveryStatus || null}, ${order.sourceSheet}, ${order.sourceRow}, ${batchId}, NOW())`);
-    }
-    for (const issue of data.issues) statements.push(sql`INSERT INTO "ValidationIssue" ("id", "type", "severity", "sourceSheet", "sourceRow", "externalOrder", "message", "importBatchId", "createdAt") VALUES (${crypto.randomUUID()}, ${issue.type}, ${issue.type === "duplicate" ? "warning" : "error"}, ${issue.sheet}, ${issue.row}, ${issue.order || null}, ${issue.message}, ${batchId}, NOW())`);
+    if (orderPayload.length) statements.push(sql`INSERT INTO "Order" ("id", "externalOrder", "client", "supplier", "carrier", "invoice", "value", "sentAt", "expectedAt", "deliveredAt", "deadlineStatus", "deliveryStatus", "sourceSheet", "sourceRow", "importBatchId", "createdAt") SELECT x.id, x.external_order, x.client, x.supplier, x.carrier, x.invoice, x.value, x.sent_at, x.expected_at, x.delivered_at, x.deadline_status, x.delivery_status, x.source_sheet, x.source_row, x.import_batch_id, NOW() FROM jsonb_to_recordset(${JSON.stringify(orderPayload)}::jsonb) AS x(id text, external_order text, client text, supplier text, carrier text, invoice text, value numeric, sent_at timestamp, expected_at timestamp, delivered_at timestamp, deadline_status text, delivery_status text, source_sheet text, source_row integer, import_batch_id text)`);
+    if (issuePayload.length) statements.push(sql`INSERT INTO "ValidationIssue" ("id", "type", "severity", "sourceSheet", "sourceRow", "externalOrder", "message", "importBatchId", "createdAt") SELECT x.id, x.type, x.severity, x.source_sheet, x.source_row, x.external_order, x.message, x.import_batch_id, NOW() FROM jsonb_to_recordset(${JSON.stringify(issuePayload)}::jsonb) AS x(id text, type text, severity text, source_sheet text, source_row integer, external_order text, message text, import_batch_id text)`);
     statements.push(sql`UPDATE "ImportBatch" SET "status" = 'COMPLETED', "rowsInserted" = ${validOrders.length}, "totalDatabase" = ${totalDatabase} WHERE "id" = ${batchId}`);
     statements.push(sql`INSERT INTO "AuditLog" ("id", "action", "entity", "entityId", "metadata", "userId", "createdAt") VALUES (${crypto.randomUUID()}, 'IMPORT_COMPLETED', 'ImportBatch', ${batchId}, ${JSON.stringify({ fileName: data.fileName, rowsFound: data.rowsFound, rowsInserted: validOrders.length })}::jsonb, ${userId}, NOW())`);
     await sql.transaction(statements);
