@@ -14,11 +14,12 @@ const asDate = (value: string | null) => value ? new Date(value) : null;
 const brDate = (value: string | null) => value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value)) : "—";
 
 function statusOf(row: DbOrder): OrderStatus {
-  const source = normalize(row.sourceSheet), delivery = normalize(row.deliveryStatus), deadline = normalize(row.deadlineStatus);
-  if (source.includes("entreg") || delivery.includes("entreg") || row.deliveredAt) return "Entregue";
+  const source = normalize(row.sourceSheet), deadline = normalize(row.deadlineStatus);
+  if (source.includes("entreg")) return "Entregue";
+  if (deadline.includes("fora do prazo")) return "Vencido";
+  if (deadline.includes("dentro do prazo")) return "No prazo";
   if (deadline.includes("vencendo")) return "Vencendo";
   if (deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
-  if (deadline.includes("prazo")) return "No prazo";
   return "Outros";
 }
 
@@ -34,11 +35,12 @@ export async function GET() {
     const totalValue = rows.reduce((sum, row) => sum + Number(row.value), 0);
     const deliveredValue = rows.reduce((sum, row, i) => sum + (statuses[i] === "Entregue" ? Number(row.value) : 0), 0);
     const count = (status: OrderStatus) => statuses.filter((item) => item === status).length;
-    const supplierMap = new Map<string, { value: number; orders: number; late: number; delivered: number }>();
+    const supplierMap = new Map<string, { value: number; orders: number; late: number; delivered: number; deliveredOnTime: number }>();
     const monthMap = new Map<string, { sort: number; pedidos: number; valor: number }>();
     rows.forEach((row, i) => {
-      const supplier = supplierMap.get(row.supplier) ?? { value: 0, orders: 0, late: 0, delivered: 0 };
-      supplier.value += Number(row.value); supplier.orders++; if (statuses[i] === "Vencido") supplier.late++; if (statuses[i] === "Entregue") supplier.delivered++;
+      const supplier = supplierMap.get(row.supplier) ?? { value: 0, orders: 0, late: 0, delivered: 0, deliveredOnTime: 0 };
+      supplier.value += Number(row.value); supplier.orders++; if (statuses[i] === "Vencido") supplier.late++;
+      if (statuses[i] === "Entregue") { supplier.delivered++; if (normalize(row.deadlineStatus).includes("dentro do prazo")) supplier.deliveredOnTime++; }
       supplierMap.set(row.supplier, supplier);
       const date = asDate(row.sentAt ?? row.expectedAt ?? row.deliveredAt);
       if (date && !Number.isNaN(date.getTime())) { const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`; const month = monthMap.get(key) ?? { sort: date.getUTCFullYear() * 12 + date.getUTCMonth(), pedidos: 0, valor: 0 }; month.pedidos++; month.valor += Number(row.value); monthMap.set(key, month); }
@@ -51,7 +53,7 @@ export async function GET() {
       orders: rows.map((row, i) => ({ id: row.id, order: row.externalOrder, client: row.client ?? "—", supplier: row.supplier, representative: row.representative ?? "—", carrier: row.carrier ?? "—", invoice: row.invoice ?? "—", value: Number(row.value), status: statuses[i], sentAt: brDate(row.sentAt), dueAt: brDate(row.dueAt ?? row.expectedAt) })),
       monthlyOrders: [...monthMap.entries()].sort((a, b) => a[1].sort - b[1].sort).slice(-12).map(([month, item]) => ({ month, pedidos: item.pedidos, valor: item.valor })),
       statusData: [{ name: "Entregues", value: delivered, color: "#3b82f6" }, { name: "No prazo", value: onTime, color: "#22c55e" }, { name: "Vencendo", value: expiring, color: "#f59e0b" }, { name: "Vencidos", value: overdue, color: "#ef4444" }, { name: "Outros", value: other, color: "#71717a" }],
-      suppliers: [...supplierMap.entries()].map(([name, item]) => ({ name, value: item.value, orders: item.orders, late: item.late, sla: item.orders ? Math.round((item.delivered / item.orders) * 1000) / 10 : 0 })).sort((a, b) => b.value - a.value),
+      suppliers: [...supplierMap.entries()].map(([name, item]) => ({ name: name || "Sem fornecedor", value: item.value, orders: item.orders, late: item.late, sla: item.delivered ? Math.round((item.deliveredOnTime / item.delivered) * 1000) / 10 : 0 })).sort((a, b) => b.value - a.value),
     };
     return NextResponse.json(result, { headers: { "cache-control": "no-store" } });
   } catch (error) {
