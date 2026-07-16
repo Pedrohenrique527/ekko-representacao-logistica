@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-:root { --background: #090a0c; --foreground: #f4f4f5; color-scheme: dark; }
+:root { --background: #090a0c; --foreground: #f4f4f5; --surface: #121316; --brand: #1f5d50; color-scheme: dark; }
+html[data-theme="light"] { --background: #f3f1ec; --foreground: #18181b; --surface: #ffffff; color-scheme: light; }
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -18,3 +19,24 @@ button { cursor: pointer; }
 ::-webkit-scrollbar-thumb { background: #2b2e34; border-radius: 999px; border: 2px solid #0b0c0e; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3e46; }
 .recharts-surface:focus { outline: none; }
+
+html[data-theme="light"] [class*="bg-[#090a0c]"] { background-color: #f3f1ec !important; }
+html[data-theme="light"] [class*="bg-[#0d0e10]"] { background-color: #faf9f6 !important; }
+html[data-theme="light"] [class*="bg-[#0e0f11]"] { background-color: #f7f6f2 !important; }
+html[data-theme="light"] [class*="bg-[#121316]"] { background-color: #ffffff !important; }
+html[data-theme="light"] [class*="bg-[#16181c]"] { background-color: #ffffff !important; }
+html[data-theme="light"] [class*="border-white"] { border-color: rgba(24,24,27,.11) !important; }
+html[data-theme="light"] [class*="divide-white"] > :not([hidden]) ~ :not([hidden]) { border-color: rgba(24,24,27,.08) !important; }
+html[data-theme="light"] .text-white,
+html[data-theme="light"] .text-zinc-50,
+html[data-theme="light"] .text-zinc-100,
+html[data-theme="light"] .text-zinc-200 { color: #18181b !important; }
+html[data-theme="light"] .text-zinc-300,
+html[data-theme="light"] .text-zinc-400 { color: #3f3f46 !important; }
+html[data-theme="light"] .text-zinc-500,
+html[data-theme="light"] .text-zinc-600,
+html[data-theme="light"] .text-zinc-700 { color: #71717a !important; }
+html[data-theme="light"] input,
+html[data-theme="light"] select { background: #fff !important; color: #18181b !important; border-color: #d4d4d8 !important; }
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #eceae4; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #b8b6b0; border-color: #eceae4; }

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     const userRows = await sql`SELECT "id" FROM "User" WHERE "email" = ${email} LIMIT 1`;
     const userId = userRows[0]?.id ?? crypto.randomUUID();
     const batchId = crypto.randomUUID();
-    const name = signedUser?.displayName ?? "Usuário LogiSight";
+    const name = signedUser?.displayName ?? "Usuário Ekko";
     const orderPayload = validOrders.map((order) => ({
       id: crypto.randomUUID(), external_order: order.order.trim(), client: order.client || null, supplier: order.supplier.trim(),
       carrier: order.carrier || null, invoice: order.invoice || null, value: order.value, sent_at: excelDate(order.sentAt)?.toISOString() ?? null,
