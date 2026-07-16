@@ -18,7 +18,8 @@ function statusOf(row: DbOrder): OrderStatus {
   if (source.includes("entreg") || delivery.includes("entreg") || row.deliveredAt) return "Entregue";
   if (deadline.includes("vencendo")) return "Vencendo";
   if (deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
-  return "No prazo";
+  if (deadline.includes("prazo")) return "No prazo";
+  return "Outros";
 }
 
 export async function GET() {
@@ -42,14 +43,14 @@ export async function GET() {
       const date = asDate(row.sentAt ?? row.expectedAt ?? row.deliveredAt);
       if (date && !Number.isNaN(date.getTime())) { const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`; const month = monthMap.get(key) ?? { sort: date.getUTCFullYear() * 12 + date.getUTCMonth(), pedidos: 0, valor: 0 }; month.pedidos++; month.valor += Number(row.value); monthMap.set(key, month); }
     });
-    const delivered = count("Entregue"), overdue = count("Vencido"), expiring = count("Vencendo"), onTime = count("No prazo");
+    const delivered = count("Entregue"), overdue = count("Vencido"), expiring = count("Vencendo"), onTime = count("No prazo"), other = count("Outros");
     const result: DashboardData = {
       hasData: true,
       latestImport: { fileName: latest.fileName, createdAt: new Date(latest.createdAt).toISOString(), integrity: Number(latest.integrityScore) },
-      metrics: { total: rows.length, active: rows.length - delivered, delivered, onTime, expiring, overdue, totalValue, deliveredValue, pendingValue: totalValue - deliveredValue, averageTicket: rows.length ? totalValue / rows.length : 0 },
+      metrics: { total: rows.length, active: rows.length - delivered, delivered, onTime, expiring, overdue, other, totalValue, deliveredValue, pendingValue: totalValue - deliveredValue, averageTicket: rows.length ? totalValue / rows.length : 0 },
       orders: rows.map((row, i) => ({ id: row.id, order: row.externalOrder, client: row.client ?? "—", supplier: row.supplier, representative: row.representative ?? "—", carrier: row.carrier ?? "—", invoice: row.invoice ?? "—", value: Number(row.value), status: statuses[i], sentAt: brDate(row.sentAt), dueAt: brDate(row.dueAt ?? row.expectedAt) })),
       monthlyOrders: [...monthMap.entries()].sort((a, b) => a[1].sort - b[1].sort).slice(-12).map(([month, item]) => ({ month, pedidos: item.pedidos, valor: item.valor })),
-      statusData: [{ name: "Entregues", value: delivered, color: "#3b82f6" }, { name: "No prazo", value: onTime, color: "#22c55e" }, { name: "Vencendo", value: expiring, color: "#f59e0b" }, { name: "Vencidos", value: overdue, color: "#ef4444" }],
+      statusData: [{ name: "Entregues", value: delivered, color: "#3b82f6" }, { name: "No prazo", value: onTime, color: "#22c55e" }, { name: "Vencendo", value: expiring, color: "#f59e0b" }, { name: "Vencidos", value: overdue, color: "#ef4444" }, { name: "Outros", value: other, color: "#71717a" }],
       suppliers: [...supplierMap.entries()].map(([name, item]) => ({ name, value: item.value, orders: item.orders, late: item.late, sla: item.orders ? Math.round((item.delivered / item.orders) * 1000) / 10 : 0 })).sort((a, b) => b.value - a.value),
     };
     return NextResponse.json(result, { headers: { "cache-control": "no-store" } });

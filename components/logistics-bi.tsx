@@ -48,6 +48,7 @@ const statusClasses: Record<OrderStatus, string> = {
   Vencendo: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   Vencido: "border-rose-500/20 bg-rose-500/10 text-rose-300",
   Entregue: "border-blue-500/20 bg-blue-500/10 text-blue-300",
+  Outros: "border-zinc-500/20 bg-zinc-500/10 text-zinc-300",
 };
 
 const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
@@ -101,6 +102,7 @@ function DashboardView({ navigate, data, loading }: { navigate: (page: PageId) =
         <MetricCard label="No prazo" value={number.format(metrics.onTime)} icon={ShieldCheck} tone="green" />
         <MetricCard label="Vencendo" value={number.format(metrics.expiring)} icon={Clock3} tone="amber" />
         <MetricCard label="Vencidos" value={number.format(metrics.overdue)} icon={AlertTriangle} tone="red" />
+        <MetricCard label="Demais status" value={number.format(metrics.other)} icon={Boxes} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -174,7 +176,7 @@ function OrdersTable({ orders, compact = false, onOpenAll }: { orders: Order[]; 
         <div><h3 className="text-sm font-semibold text-zinc-100">{compact ? "Pedidos recentes" : "Base de pedidos"}</h3><p className="mt-1 text-xs text-zinc-500">Dados consolidados das abas operacionais</p></div>
         <div className="flex flex-wrap items-center gap-2">
           {!compact && <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" size={14}/><Input aria-label="Pesquisar pedidos" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pedido, cliente, fornecedor..." className="w-64 pl-9"/></div>}
-          {!compact && <select aria-label="Filtrar status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg border border-white/10 bg-[#0d0e10] px-3 text-xs text-zinc-300 outline-none">{["Todos", "No prazo", "Vencendo", "Vencido", "Entregue"].map((s) => <option key={s}>{s}</option>)}</select>}
+          {!compact && <select aria-label="Filtrar status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg border border-white/10 bg-[#0d0e10] px-3 text-xs text-zinc-300 outline-none">{["Todos", "No prazo", "Vencendo", "Vencido", "Entregue", "Outros"].map((s) => <option key={s}>{s}</option>)}</select>}
           {!compact && <Button variant="secondary" size="sm" onClick={exportCsv}><ArrowDownToLine size={14}/>Exportar</Button>}
           {compact && <Button variant="ghost" size="sm" onClick={onOpenAll}>Ver todos<ChevronRight size={14}/></Button>}
         </div>

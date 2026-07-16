@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const parsed = payloadSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ message: "Os dados da planilha não passaram pela validação de segurança." }, { status: 400 });
     const data = parsed.data;
-    const validOrders = data.orders.filter((order) => order.order.trim() && order.supplier.trim());
+    const validOrders = data.orders;
     const totalDatabase = validOrders.reduce((sum, order) => sum + order.value, 0);
     const signedUser = await getChatGPTUser();
     const email = signedUser?.email ?? (process.env.NODE_ENV === "development" ? "pessoalpedro5@gmail.com" : null);

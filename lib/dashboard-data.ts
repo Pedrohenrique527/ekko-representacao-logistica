@@ -1,4 +1,4 @@
-export type OrderStatus = "No prazo" | "Vencendo" | "Vencido" | "Entregue";
+export type OrderStatus = "No prazo" | "Vencendo" | "Vencido" | "Entregue" | "Outros";
 
 export type Order = {
   id: string;
@@ -22,7 +22,7 @@ export type DashboardData = {
   hasData: boolean;
   latestImport: { fileName: string; createdAt: string; integrity: number } | null;
   metrics: {
-    total: number; active: number; delivered: number; onTime: number; expiring: number; overdue: number;
+    total: number; active: number; delivered: number; onTime: number; expiring: number; overdue: number; other: number;
     totalValue: number; deliveredValue: number; pendingValue: number; averageTicket: number;
   };
   orders: Order[];
@@ -34,12 +34,13 @@ export type DashboardData = {
 export const emptyDashboard: DashboardData = {
   hasData: false,
   latestImport: null,
-  metrics: { total: 0, active: 0, delivered: 0, onTime: 0, expiring: 0, overdue: 0, totalValue: 0, deliveredValue: 0, pendingValue: 0, averageTicket: 0 },
+  metrics: { total: 0, active: 0, delivered: 0, onTime: 0, expiring: 0, overdue: 0, other: 0, totalValue: 0, deliveredValue: 0, pendingValue: 0, averageTicket: 0 },
   orders: [], monthlyOrders: [], suppliers: [],
   statusData: [
     { name: "Entregues", value: 0, color: "#3b82f6" },
     { name: "No prazo", value: 0, color: "#22c55e" },
     { name: "Vencendo", value: 0, color: "#f59e0b" },
     { name: "Vencidos", value: 0, color: "#ef4444" },
+    { name: "Outros", value: 0, color: "#71717a" },
   ],
 };
