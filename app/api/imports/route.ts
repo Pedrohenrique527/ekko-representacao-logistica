@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getChatGPTUser, isChatGPTUserAllowed } from "@/app/chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 // The hosted runtime uses Neon HTTP transactions, which are compatible with the worker environment.
@@ -32,6 +32,8 @@ export async function POST(request: Request) {
     const validOrders = data.orders.filter((order) => order.order.trim() && order.supplier.trim());
     const totalDatabase = validOrders.reduce((sum, order) => sum + order.value, 0);
     const signedUser = await getChatGPTUser();
+    if (!signedUser && process.env.NODE_ENV !== "development") return NextResponse.json({ message: "Faça login novamente para importar a planilha." }, { status: 401 });
+    if (signedUser && !isChatGPTUserAllowed(signedUser)) return NextResponse.json({ message: "Esta conta não possui permissão para importar." }, { status: 403 });
     const email = signedUser?.email ?? process.env.APP_ALLOWED_EMAIL ?? (process.env.NODE_ENV === "development" ? "pessoalpedro5@gmail.com" : null);
     if (!email) return NextResponse.json({ message: "Faça login novamente para importar a planilha." }, { status: 401 });
     const connection = process.env.DATABASE_URL;

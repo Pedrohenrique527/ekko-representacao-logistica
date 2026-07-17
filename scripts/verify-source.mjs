@@ -29,10 +29,12 @@ const parseValue = (input) => {
   return Number(raw);
 };
 const statusOf = (row) => {
-  const source = normalize(row.sourceSheet), deadline = normalize(row.deadlineStatus);
+  const source = normalize(row.sourceSheet), deadline = normalize(row.deadlineStatus), delivery = normalize(row.deliveryStatus);
   if (source.includes("entreg")) return "Entregue";
+  if (delivery.includes("atencao") || delivery.includes("vencendo")) return "Vencendo";
   if (deadline.includes("foradoprazo")) return "Vencido";
-  if (deadline.includes("dentrodoprazo")) return "No prazo";
+  if (delivery.includes("foradoprazo")) return "Vencido";
+  if (deadline.includes("dentrodoprazo") || delivery === "ok") return "No prazo";
   if (deadline.includes("vencendo")) return "Vencendo";
   if (deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
   return "Outros";
@@ -64,7 +66,7 @@ for (const sheetName of sheets) {
     const get = (field) => map.has(field) ? row[map.get(field)] : null;
     const rawOrder = String(get("order") ?? "").trim();
     const [order, ...client] = rawOrder.split(" - ");
-    excelRows.push({ sourceSheet: sheetName, sourceRow: headerRow + offset + 2, order, client: client.join(" - "), supplier: String(get("supplier") ?? "").trim(), value: parseValue(get("value")), deadlineStatus: String(get("deadlineStatus") ?? "").trim() });
+    excelRows.push({ sourceSheet: sheetName, sourceRow: headerRow + offset + 2, order, client: client.join(" - "), supplier: String(get("supplier") ?? "").trim(), value: parseValue(get("value")), deadlineStatus: String(get("deadlineStatus") ?? "").trim(), deliveryStatus: String(get("deliveryStatus") ?? "").trim() });
   });
 }
 
@@ -86,7 +88,7 @@ const sql = neon(env.DATABASE_URL);
 const batches = await sql`SELECT "id", "fileName", "fileHash", "rowsFound", "rowsInserted", "totalExcel", "totalDatabase", "integrityScore", "createdAt" FROM "ImportBatch" WHERE "status"='COMPLETED' ORDER BY "createdAt" DESC LIMIT 1`;
 if (!batches.length) throw new Error("Nenhuma importação concluída no banco.");
 const batch = batches[0];
-const storedDbRows = await sql`SELECT "sourceSheet", "sourceRow", "externalOrder", "supplier", "value", "deadlineStatus" FROM "Order" WHERE "importBatchId"=${batch.id} ORDER BY "sourceSheet", "sourceRow"`;
+const storedDbRows = await sql`SELECT "sourceSheet", "sourceRow", "externalOrder", "supplier", "value", "deadlineStatus", "deliveryStatus" FROM "Order" WHERE "importBatchId"=${batch.id} ORDER BY "sourceSheet", "sourceRow"`;
 const dbRows = storedDbRows.filter((row) => Boolean(row.externalOrder?.trim() && row.supplier?.trim()));
 const issueRows = await sql`SELECT "type", COUNT(*)::int AS "count" FROM "ValidationIssue" WHERE "importBatchId"=${batch.id} GROUP BY "type" ORDER BY "type"`;
 const dbMap = new Map(dbRows.map((row) => [`${normalize(row.sourceSheet)}:${row.sourceRow}`, row]));
@@ -98,7 +100,7 @@ for (const row of validExcelRows) {
     pedido: String(db.externalOrder) === row.order,
     fornecedor: String(db.supplier) === row.supplier,
     valor: Math.abs(Number(db.value) - row.value) < 0.005,
-    status: statusOf({ sourceSheet: db.sourceSheet, deadlineStatus: db.deadlineStatus }) === statusOf(row),
+    status: statusOf({ sourceSheet: db.sourceSheet, deadlineStatus: db.deadlineStatus, deliveryStatus: db.deliveryStatus }) === statusOf(row),
   };
   if (Object.values(checks).some((ok) => !ok)) mismatches.push({ sheet: row.sourceSheet, row: row.sourceRow, order: row.order, checks });
 }

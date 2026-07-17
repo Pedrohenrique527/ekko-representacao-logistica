@@ -1,6 +1,8 @@
 import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { classifyOrderStatus } from "@/lib/order-status";
+import { getChatGPTUser, isChatGPTUserAllowed } from "@/app/chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,7 @@ const orderSchema = z.object({
   supplier: z.string(),
   value: z.number().finite(),
   deadlineStatus: z.string(),
+  deliveryStatus: z.string(),
 });
 const payloadSchema = z.object({
   fileHash: z.string().length(64),
@@ -20,23 +23,17 @@ const payloadSchema = z.object({
 });
 
 type CheckOrder = z.infer<typeof orderSchema>;
-type DbOrder = { sourceSheet: string; sourceRow: number; externalOrder: string; supplier: string; value: string | number; deadlineStatus: string | null };
+type DbOrder = { sourceSheet: string; sourceRow: number; externalOrder: string; supplier: string; value: string | number; deadlineStatus: string | null; deliveryStatus: string | null };
 const normalize = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-const statusOf = (row: { sourceSheet: string; deadlineStatus: string | null }) => {
-  const source = normalize(row.sourceSheet), deadline = normalize(row.deadlineStatus);
-  if (source.includes("entreg")) return "Entregue";
-  if (deadline.includes("foradoprazo")) return "Vencido";
-  if (deadline.includes("dentrodoprazo")) return "No prazo";
-  if (deadline.includes("vencendo")) return "Vencendo";
-  if (deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
-  return "Outros";
-};
-const countStatuses = (rows: Array<{ sourceSheet: string; deadlineStatus: string | null }>) => rows.reduce<Record<string, number>>((acc, row) => {
-  const status = statusOf(row); acc[status] = (acc[status] ?? 0) + 1; return acc;
+const countStatuses = (rows: Array<{ sourceSheet: string; deadlineStatus: string | null; deliveryStatus: string | null }>) => rows.reduce<Record<string, number>>((acc, row) => {
+  const status = classifyOrderStatus(row); acc[status] = (acc[status] ?? 0) + 1; return acc;
 }, {});
 
 export async function POST(request: Request) {
   try {
+    const user = await getChatGPTUser();
+    if (!user) return NextResponse.json({ message: "Faça login para executar a auditoria." }, { status: 401 });
+    if (!isChatGPTUserAllowed(user)) return NextResponse.json({ message: "Esta conta não possui permissão." }, { status: 403 });
     const parsed = payloadSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ message: "A planilha não pôde ser validada." }, { status: 400 });
     if (!process.env.DATABASE_URL) return NextResponse.json({ message: "Banco de dados não configurado." }, { status: 503 });
@@ -44,7 +41,7 @@ export async function POST(request: Request) {
     const batches = await sql`SELECT "id", "fileName", "fileHash", "rowsFound", "rowsInserted", "totalExcel", "totalDatabase", "createdAt" FROM "ImportBatch" WHERE "status"='COMPLETED' ORDER BY "createdAt" DESC LIMIT 1`;
     if (!batches.length) return NextResponse.json({ message: "Não existe uma importação concluída para comparar." }, { status: 404 });
     const batch = batches[0] as { id: string; fileName: string; fileHash: string; rowsFound: number; rowsInserted: number; totalExcel: string | number; totalDatabase: string | number; createdAt: string };
-    const storedRows = await sql`SELECT "sourceSheet", "sourceRow", "externalOrder", "supplier", "value", "deadlineStatus" FROM "Order" WHERE "importBatchId"=${batch.id}` as DbOrder[];
+    const storedRows = await sql`SELECT "sourceSheet", "sourceRow", "externalOrder", "supplier", "value", "deadlineStatus", "deliveryStatus" FROM "Order" WHERE "importBatchId"=${batch.id}` as DbOrder[];
     const dbRows = storedRows.filter((row) => Boolean(row.externalOrder.trim() && row.supplier.trim()));
     const dbMap = new Map(dbRows.map((row) => [`${normalize(row.sourceSheet)}:${row.sourceRow}`, row]));
     const mismatches: Array<{ sheet: string; row: number; order: string; fields: string[] }> = [];
@@ -57,7 +54,7 @@ export async function POST(request: Request) {
         pedido: db.externalOrder === excel.order,
         fornecedor: db.supplier === excel.supplier,
         valor: Math.abs(Number(db.value) - excel.value) < 0.005,
-        status: statusOf(db) === statusOf(excel),
+        status: classifyOrderStatus(db) === classifyOrderStatus(excel),
       };
       checkedFields += 4;
       matchedFields += Object.values(checks).filter(Boolean).length;

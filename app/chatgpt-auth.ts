@@ -44,6 +44,14 @@ export async function requireChatGPTUser(
   redirect(chatGPTSignInPath(returnTo));
 }
 
+export function isChatGPTUserAllowed(user: ChatGPTUser): boolean {
+  const allowlist = String(process.env.APP_ALLOWED_EMAIL ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  return allowlist.length === 0 || allowlist.includes(user.email.trim().toLowerCase());
+}
+
 export function chatGPTSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;

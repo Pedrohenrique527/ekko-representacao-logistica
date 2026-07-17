@@ -1,6 +1,8 @@
 import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import { emptyDashboard, type DashboardData, type OrderStatus } from "@/lib/dashboard-data";
+import { classifyOrderStatus } from "@/lib/order-status";
+import { getChatGPTUser, isChatGPTUserAllowed } from "@/app/chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,18 +15,11 @@ const normalize = (value: unknown) => String(value ?? "").normalize("NFD").repla
 const asDate = (value: string | null) => value ? new Date(value) : null;
 const brDate = (value: string | null) => value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value)) : "—";
 
-function statusOf(row: DbOrder): OrderStatus {
-  const source = normalize(row.sourceSheet), deadline = normalize(row.deadlineStatus);
-  if (source.includes("entreg")) return "Entregue";
-  if (deadline.includes("fora do prazo")) return "Vencido";
-  if (deadline.includes("dentro do prazo")) return "No prazo";
-  if (deadline.includes("vencendo")) return "Vencendo";
-  if (deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
-  return "Outros";
-}
-
 export async function GET() {
   try {
+    const user = await getChatGPTUser();
+    if (!user) return NextResponse.json({ message: "Faça login para consultar o painel." }, { status: 401 });
+    if (!isChatGPTUserAllowed(user)) return NextResponse.json({ message: "Esta conta não possui permissão." }, { status: 403 });
     if (!process.env.DATABASE_URL) return NextResponse.json(emptyDashboard, { headers: { "cache-control": "no-store" } });
     const sql = neon(process.env.DATABASE_URL);
     const imports = await sql`SELECT "id", "fileName", "fileHash", "createdAt", "integrityScore", "rowsFound", "rowsInserted", "totalExcel", "totalDatabase" FROM "ImportBatch" WHERE "status" = 'COMPLETED' ORDER BY "createdAt" DESC LIMIT 1`;
@@ -33,7 +28,7 @@ export async function GET() {
     const storedRows = await sql`SELECT "id", "externalOrder", "client", "supplier", "representative", "carrier", "invoice", "value", "sentAt", "expectedAt", "dueAt", "deliveredAt", "deadlineStatus", "deliveryStatus", "sourceSheet" FROM "Order" WHERE "importBatchId" = ${latest.id} ORDER BY "sourceRow" ASC` as DbOrder[];
     const rows = storedRows.filter((row) => Boolean(row.externalOrder.trim() && row.supplier.trim()));
     const issueRows = await sql`SELECT COUNT(*)::int AS "count" FROM "ValidationIssue" v LEFT JOIN "Order" o ON o."importBatchId"=v."importBatchId" AND o."sourceSheet"=v."sourceSheet" AND o."sourceRow"=v."sourceRow" WHERE v."importBatchId" = ${latest.id} AND (v."type" <> 'missing' OR COALESCE(o."externalOrder", '') <> '' OR COALESCE(o."supplier", '') <> '')` as { count: number }[];
-    const statuses = rows.map(statusOf);
+    const statuses = rows.map(classifyOrderStatus);
     const totalValue = rows.reduce((sum, row) => sum + Number(row.value), 0);
     const deliveredValue = rows.reduce((sum, row, i) => sum + (statuses[i] === "Entregue" ? Number(row.value) : 0), 0);
     const count = (status: OrderStatus) => statuses.filter((item) => item === status).length;
