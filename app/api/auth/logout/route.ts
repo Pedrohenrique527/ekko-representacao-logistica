@@ -10,14 +10,22 @@ export async function POST(request: Request) {
       const sql = neon(connection);
       const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
       const userAgent = request.headers.get("user-agent");
-      await sql`
-        INSERT INTO "AuditLog" ("id", "action", "entity", "metadata", "ipAddress", "userAgent", "userId", "createdAt")
-        SELECT ${crypto.randomUUID()}, 'LOGOUT', 'Session', ${JSON.stringify({ email: user.email })}::jsonb,
-          ${forwardedFor}, ${userAgent}, "id", NOW()
-        FROM "User"
-        WHERE LOWER("email") = ${user.email.toLowerCase()}
-        LIMIT 1
-      `;
+      const userId = crypto.randomUUID();
+      await sql.transaction([
+        sql`
+          INSERT INTO "User" ("id", "name", "email", "passwordHash", "role", "createdAt", "updatedAt")
+          VALUES (${userId}, ${user.name}, ${user.email.toLowerCase()}, 'SIWC_MANAGED', 'ADMIN', NOW(), NOW())
+          ON CONFLICT ("email") DO NOTHING
+        `,
+        sql`
+          INSERT INTO "AuditLog" ("id", "action", "entity", "metadata", "ipAddress", "userAgent", "userId", "createdAt")
+          SELECT ${crypto.randomUUID()}, 'LOGOUT', 'Session', ${JSON.stringify({ email: user.email })}::jsonb,
+            ${forwardedFor}, ${userAgent}, "id", NOW()
+          FROM "User"
+          WHERE LOWER("email") = ${user.email.toLowerCase()}
+          LIMIT 1
+        `,
+      ]);
     } catch (error) {
       console.error("Logout audit failed", error);
     }
