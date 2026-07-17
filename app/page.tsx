@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LogisticsBIV2 } from "@/components/logistics-bi-v2";
 import { redirect } from "next/navigation";
-import { getChatGPTUser, isChatGPTUserAllowed } from "@/app/chatgpt-auth";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const user = await getChatGPTUser();
-  if (!user || !isChatGPTUserAllowed(user)) redirect("/login");
+  const user = await getAuthenticatedUser();
+  if (!user) redirect("/login");
   return <LogisticsBIV2 />;
 }

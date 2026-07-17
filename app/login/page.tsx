@@ -1,17 +1,10 @@
-import { chatGPTSignInPath, chatGPTSignOutPath, getChatGPTUser, isChatGPTUserAllowed } from "@/app/chatgpt-auth";
+import { getAuthenticatedUser } from "@/lib/auth";
 import { LoginView } from "@/app/login/login-view";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
-  const user = await getChatGPTUser();
-  const allowed = user ? isChatGPTUserAllowed(user) : false;
-  return (
-    <LoginView
-      signInHref={chatGPTSignInPath("/")}
-      signOutHref={chatGPTSignOutPath("/login")}
-      signedInEmail={user?.email ?? null}
-      allowed={allowed}
-    />
-  );
+  if (await getAuthenticatedUser()) redirect("/");
+  return <LoginView defaultEmail="representacao@ekkorevestimentos.com.br" />;
 }

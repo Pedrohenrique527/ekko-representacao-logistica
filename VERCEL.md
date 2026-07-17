@@ -1,23 +1,18 @@
 # Hospedagem na Vercel
 
-O projeto já está preparado para rodar como uma aplicação Next.js na Vercel.
+O projeto utiliza Next.js, PostgreSQL Neon e autenticação própria com sessão protegida. O histórico de importações fica no banco e não é perdido em novos deploys.
 
-## Caminho mais simples
+## Variáveis obrigatórias
 
-1. Envie este projeto para um repositório privado no GitHub.
-2. Entre em `vercel.com` usando a mesma conta do GitHub.
-3. Clique em **Add New > Project** e selecione o repositório.
-4. Em **Environment Variables**, cadastre:
-   - `DATABASE_URL`: a conexão do banco Neon.
-   - `APP_ALLOWED_EMAIL`: `pedromarinho527@gmail.com`.
-5. Clique em **Deploy**.
-6. Em **Settings > Deployment Protection**, ative a proteção de acesso da Vercel para impedir acesso público.
+- `DATABASE_URL`: conexão PostgreSQL do Neon.
+- `APP_LOGIN_EMAIL`: e-mail autorizado para o login.
+- `APP_LOGIN_PASSWORD_HASH`: hash PBKDF2 da senha; nunca grave a senha no GitHub.
+- `AUTH_SECRET`: segredo aleatório usado para assinar as sessões.
 
-## Configuração detectada automaticamente
+## Configuração
 
 - Framework: Next.js
 - Build: `npm run build:vercel`
-- Banco: PostgreSQL Neon
 - Node.js: 22 ou superior
 
-Nunca coloque a senha do banco em arquivos enviados ao GitHub. Ela deve existir somente nas variáveis protegidas da Vercel.
+Todos os segredos devem ser cadastrados nas variáveis protegidas da Vercel, nunca em arquivos enviados ao GitHub.

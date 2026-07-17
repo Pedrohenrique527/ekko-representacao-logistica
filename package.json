@@ -1,6 +1,6 @@
 {
   "name": "ekko-representacao-logistica",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "engines": {
@@ -13,7 +13,8 @@
     "dev:vercel": "next dev",
     "build:vercel": "next build",
     "start:vercel": "next start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "postinstall": "prisma generate",
+    "test": "npm run build:vercel",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

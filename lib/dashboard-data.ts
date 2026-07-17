@@ -19,6 +19,19 @@ export type Order = {
 export type SupplierSummary = { name: string; value: number; orders: number; sla: number; late: number };
 export type MonthlySummary = { month: string; pedidos: number; valor: number };
 export type StatusSummary = { name: string; value: number; color: string };
+export type ImportHistoryItem = {
+  id: string;
+  fileName: string;
+  createdAt: string;
+  rowsFound: number;
+  rowsInserted: number;
+  totalExcel: number;
+  totalDatabase: number;
+  integrity: number;
+  durationMs: number;
+  status: string;
+  userEmail: string;
+};
 
 export type DashboardData = {
   hasData: boolean;
@@ -31,6 +44,7 @@ export type DashboardData = {
   monthlyOrders: MonthlySummary[];
   statusData: StatusSummary[];
   suppliers: SupplierSummary[];
+  importHistory: ImportHistoryItem[];
   proof: {
     rowsExcel: number;
     rowsDatabase: number;
@@ -47,7 +61,7 @@ export const emptyDashboard: DashboardData = {
   hasData: false,
   latestImport: null,
   metrics: { total: 0, active: 0, delivered: 0, onTime: 0, expiring: 0, overdue: 0, other: 0, totalValue: 0, deliveredValue: 0, pendingValue: 0, averageTicket: 0 },
-  orders: [], monthlyOrders: [], suppliers: [], proof: null,
+  orders: [], monthlyOrders: [], suppliers: [], importHistory: [], proof: null,
   statusData: [
     { name: "Entregues", value: 0, color: "#3b82f6" },
     { name: "No prazo", value: 0, color: "#22c55e" },

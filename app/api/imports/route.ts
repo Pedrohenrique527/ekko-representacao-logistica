@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getChatGPTUser, isChatGPTUserAllowed } from "@/app/chatgpt-auth";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 // The hosted runtime uses Neon HTTP transactions, which are compatible with the worker environment.
@@ -31,10 +31,9 @@ export async function POST(request: Request) {
     const data = parsed.data;
     const validOrders = data.orders.filter((order) => order.order.trim() && order.supplier.trim());
     const totalDatabase = validOrders.reduce((sum, order) => sum + order.value, 0);
-    const signedUser = await getChatGPTUser();
-    if (!signedUser && process.env.NODE_ENV !== "development") return NextResponse.json({ message: "Faça login novamente para importar a planilha." }, { status: 401 });
-    if (signedUser && !isChatGPTUserAllowed(signedUser)) return NextResponse.json({ message: "Esta conta não possui permissão para importar." }, { status: 403 });
-    const email = signedUser?.email ?? process.env.APP_ALLOWED_EMAIL ?? (process.env.NODE_ENV === "development" ? "pessoalpedro5@gmail.com" : null);
+    const signedUser = await getAuthenticatedUser();
+    if (!signedUser) return NextResponse.json({ message: "Faça login novamente para importar a planilha." }, { status: 401 });
+    const email = signedUser.email;
     if (!email) return NextResponse.json({ message: "Faça login novamente para importar a planilha." }, { status: 401 });
     const connection = process.env.DATABASE_URL;
     if (!connection) return NextResponse.json({ message: "O banco de dados não está configurado no ambiente publicado." }, { status: 503 });
@@ -45,7 +44,7 @@ export async function POST(request: Request) {
     const userRows = await sql`SELECT "id" FROM "User" WHERE "email" = ${email} LIMIT 1`;
     const userId = userRows[0]?.id ?? crypto.randomUUID();
     const batchId = crypto.randomUUID();
-    const name = signedUser?.displayName ?? "Usuário Ekko";
+    const name = signedUser.name;
     const orderPayload = validOrders.map((order) => ({
       id: crypto.randomUUID(), external_order: order.order.trim(), client: order.client || null, supplier: order.supplier.trim(),
       carrier: order.carrier || null, invoice: order.invoice || null, value: order.value, sent_at: excelDate(order.sentAt)?.toISOString() ?? null,

@@ -2,7 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { classifyOrderStatus } from "@/lib/order-status";
-import { getChatGPTUser, isChatGPTUserAllowed } from "@/app/chatgpt-auth";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +31,8 @@ const countStatuses = (rows: Array<{ sourceSheet: string; deadlineStatus: string
 
 export async function POST(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getAuthenticatedUser();
     if (!user) return NextResponse.json({ message: "Faça login para executar a auditoria." }, { status: 401 });
-    if (!isChatGPTUserAllowed(user)) return NextResponse.json({ message: "Esta conta não possui permissão." }, { status: 403 });
     const parsed = payloadSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ message: "A planilha não pôde ser validada." }, { status: 400 });
     if (!process.env.DATABASE_URL) return NextResponse.json({ message: "Banco de dados não configurado." }, { status: 503 });
