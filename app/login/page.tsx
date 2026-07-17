@@ -4,7 +4,23 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reason?: string; loggedOut?: string }>;
+}) {
   if (await getAuthenticatedUser()) redirect("/");
-  return <LoginView defaultEmail="representacao@ekkorevestimentos.com.br" />;
+  const params = await searchParams;
+  const notice =
+    params.reason === "expired"
+      ? "expired"
+      : params.loggedOut === "1"
+        ? "logged-out"
+        : undefined;
+  return (
+    <LoginView
+      defaultEmail="representacao@ekkorevestimentos.com.br"
+      notice={notice}
+    />
+  );
 }
