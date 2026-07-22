@@ -20,6 +20,16 @@ export const authLoadingSteps = [
 
 type RobotMode = "login" | "loading" | "logout";
 type Gaze = { x: number; y: number };
+type RobotStage =
+  | "entering"
+  | "building"
+  | "finalizing"
+  | "resting"
+  | "idle"
+  | "click"
+  | "scanning"
+  | "loading"
+  | "logout";
 
 function ParticleCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -89,7 +99,7 @@ function CircuitField() {
   );
 }
 
-function HologramAssembly({ mode }: { mode: RobotMode }) {
+function HologramAssembly({ mode, stage }: { mode: RobotMode; stage: RobotStage }) {
   const reduced = useReducedMotion();
   if (mode === "logout") return null;
   if (mode === "loading") {
@@ -113,8 +123,9 @@ function HologramAssembly({ mode }: { mode: RobotMode }) {
       </div>
     );
   }
+  const visible = stage === "building" || stage === "finalizing" || stage === "scanning";
   return (
-    <motion.div aria-hidden className="absolute inset-x-[11%] top-[22%] z-10 h-40 sm:inset-x-[18%]" initial={reduced ? false : { opacity: 0, scale: .94 }} animate={reduced ? { opacity: .45 } : { opacity: [0, .75, .75, 0], scale: [.94, 1, 1, 1.03] }} transition={{ duration: 7.5, times: [0, .18, .64, 1], repeat: Infinity, repeatDelay: 4 }}>
+    <motion.div aria-hidden className="absolute inset-x-[11%] top-[22%] z-10 h-40 sm:inset-x-[18%]" initial={false} animate={{ opacity: visible ? (stage === "finalizing" ? .18 : stage === "scanning" ? 1 : .75) : 0, scale: stage === "scanning" ? 1.03 : 1 }} transition={{ duration: reduced ? .05 : .55, ease: "easeOut" }}>
       <div className="absolute left-0 top-6 h-24 w-[34%] rounded-[8px] border border-cyan-200/16 bg-cyan-200/[.025] p-4">
         <span className="block h-px w-16 bg-cyan-100/20" />
         <div className="mt-5 flex h-10 items-end gap-2">{[34, 62, 48, 78].map((height) => <span key={height} className="flex-1 bg-cyan-300/30" style={{ height: `${height}%` }} />)}</div>
@@ -129,12 +140,14 @@ function HologramAssembly({ mode }: { mode: RobotMode }) {
   );
 }
 
-function Robot({ mode, gaze }: { mode: RobotMode; gaze: Gaze }) {
+function Robot({ mode, stage, gaze }: { mode: RobotMode; stage: RobotStage; gaze: Gaze }) {
   const reduced = useReducedMotion();
-  const seated = mode === "login";
-  const working = mode !== "logout";
+  const seated = stage === "resting" || stage === "idle" || stage === "click";
+  const working = stage === "building" || stage === "finalizing" || stage === "scanning" || stage === "loading";
+  const walking = stage === "entering";
+  const scanning = stage === "scanning";
   return (
-    <motion.div initial={reduced ? false : { x: mode === "login" ? -110 : 0, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: reduced ? .1 : 1.15, ease: [.22, 1, .36, 1] }} className="relative z-20">
+    <motion.div initial={reduced ? false : { x: mode === "login" ? -150 : 0, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: reduced ? .1 : 1.25, ease: [.22, 1, .36, 1] }} className="relative z-20">
       <motion.svg aria-label="Assistente virtual da Ekko" role="img" viewBox="0 0 420 480" className="h-[45vh] min-h-[292px] max-h-[490px] w-auto drop-shadow-[0_28px_54px_rgba(0,0,0,.34)]" animate={reduced ? undefined : { y: [0, -3, 0] }} transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}>
         <defs>
           <linearGradient id="robotShell" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#f0f5f5" /><stop offset=".45" stopColor="#a2b3b8" /><stop offset="1" stopColor="#42565d" /></linearGradient>
@@ -143,7 +156,7 @@ function Robot({ mode, gaze }: { mode: RobotMode; gaze: Gaze }) {
           <filter id="eyeGlow"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         </defs>
 
-        {seated && <motion.g initial={{ opacity: 0, x: 35 }} animate={{ opacity: .9, x: 0 }} transition={{ delay: reduced ? 0 : 5.6, duration: .8 }}>
+        {seated && <motion.g initial={{ opacity: 0, x: 35 }} animate={{ opacity: .9, x: 0 }} transition={{ duration: reduced ? .05 : .75 }}>
           <rect x="122" y="282" width="176" height="128" rx="46" fill="#0a171c" stroke="#597078" strokeOpacity=".36" strokeWidth="3" />
           <path d="M210 398v45M155 448h110M170 448l-22 18M250 448l22 18" stroke="#5e747a" strokeWidth="10" strokeLinecap="round" />
           <circle cx="144" cy="468" r="8" fill="#1b3037" /><circle cx="276" cy="468" r="8" fill="#1b3037" />
@@ -157,18 +170,19 @@ function Robot({ mode, gaze }: { mode: RobotMode; gaze: Gaze }) {
           <motion.circle cx="210" cy="333" r="22" fill="url(#coreGlow)" filter="url(#eyeGlow)" animate={reduced ? undefined : { opacity: [.7, 1, .7], r: [20, 22, 20] }} transition={{ duration: 3.2, repeat: Infinity }} />
 
           {seated ? <>
-            <path d="M178 407q30 18 58 38" stroke="#71868c" strokeWidth="20" strokeLinecap="round" />
-            <path d="M242 407q-15 22-39 40" stroke="#71868c" strokeWidth="20" strokeLinecap="round" />
+            <motion.path d="M178 407q30 18 58 38" stroke="#71868c" strokeWidth="20" strokeLinecap="round" animate={reduced ? undefined : { rotate: [0, 1.5, 0, -1.2, 0] }} transition={{ duration: 5.2, repeat: Infinity }} style={{ transformOrigin: "178px 407px" }} />
+            <motion.path d="M242 407q-15 22-39 40" stroke="#71868c" strokeWidth="20" strokeLinecap="round" animate={reduced ? undefined : { rotate: [0, -2.5, 1.5, 0] }} transition={{ duration: 3.8, repeat: Infinity }} style={{ transformOrigin: "242px 407px" }} />
             <path d="M222 448h41M166 448h40" stroke="#d9e5e6" strokeWidth="17" strokeLinecap="round" />
           </> : <>
-            <path d="M177 409l-14 35M243 409l14 35" stroke="#71868c" strokeWidth="20" strokeLinecap="round" />
+            <motion.path d="M177 409l-14 35" stroke="#71868c" strokeWidth="20" strokeLinecap="round" animate={walking && !reduced ? { rotate: [-9, 9, -9] } : undefined} transition={{ duration: .7, repeat: Infinity }} style={{ transformOrigin: "177px 409px" }} />
+            <motion.path d="M243 409l14 35" stroke="#71868c" strokeWidth="20" strokeLinecap="round" animate={walking && !reduced ? { rotate: [9, -9, 9] } : undefined} transition={{ duration: .7, repeat: Infinity }} style={{ transformOrigin: "243px 409px" }} />
             <path d="M159 447h42M219 447h42" stroke="#d9e5e6" strokeWidth="18" strokeLinecap="round" />
           </>}
 
-          <motion.g animate={reduced ? undefined : working ? { rotate: [0, -10, 3, 0] } : { rotate: [0, 6, 0] }} transition={{ duration: 4.2, repeat: Infinity }} style={{ transformOrigin: "145px 286px" }}>
+          <motion.g animate={reduced ? undefined : scanning ? { rotate: [0, -24, -18, -24, 0] } : working ? { rotate: [0, -10, 3, 0] } : seated ? { rotate: [0, -34, -34, 0, 0] } : { rotate: [0, 6, 0] }} transition={{ duration: scanning ? 2.4 : seated ? 7.8 : 4.2, repeat: Infinity, times: seated ? [0, .55, .7, .82, 1] : undefined }} style={{ transformOrigin: "145px 286px" }}>
             <path d="M144 282l-46 54" stroke="url(#robotShell)" strokeWidth="28" strokeLinecap="round" /><circle cx="90" cy="345" r="18" fill="#afc0c4" /><path d="M80 345h-27" stroke="#879da3" strokeWidth="12" strokeLinecap="round" />
           </motion.g>
-          <motion.g animate={reduced ? undefined : working ? { rotate: [0, 12, -2, 0, -24, -24, 0] } : { rotate: [0, -8, 0] }} transition={{ duration: 7.2, repeat: Infinity, times: [0, .2, .4, .58, .68, .78, 1] }} style={{ transformOrigin: "275px 286px" }}>
+          <motion.g animate={reduced ? undefined : scanning ? { rotate: [0, 20, 12, 20, 0] } : working ? { rotate: [0, 12, -2, 0, -24, -24, 0] } : seated ? { rotate: [0, 5, 0, -28, -28, 0] } : { rotate: [0, -8, 0] }} transition={{ duration: scanning ? 2.4 : 7.2, repeat: Infinity, times: scanning ? undefined : [0, .2, .4, .58, .68, .78, 1] }} style={{ transformOrigin: "275px 286px" }}>
             <path d="M276 282l46 54" stroke="url(#robotShell)" strokeWidth="28" strokeLinecap="round" /><circle cx="330" cy="345" r="18" fill="#afc0c4" /><path d="M340 345h27" stroke="#879da3" strokeWidth="12" strokeLinecap="round" />
             <motion.path d="M367 345v-18M367 327h10" stroke="#d8e5e6" strokeWidth="7" strokeLinecap="round" animate={reduced ? undefined : { opacity: [0, 0, 1, 1, 0] }} transition={{ duration: 7.2, repeat: Infinity, times: [0, .55, .64, .8, 1] }} />
           </motion.g>
@@ -185,8 +199,13 @@ function Robot({ mode, gaze }: { mode: RobotMode; gaze: Gaze }) {
           <motion.path d={mode === "logout" ? "M194 194q16 6 32 0" : "M193 190q17 12 34 0"} fill="none" stroke="#88a6ad" strokeWidth="4" strokeLinecap="round" animate={reduced ? undefined : { d: ["M193 190q17 12 34 0", "M193 190q17 16 34 0", "M193 190q17 12 34 0"] }} transition={{ duration: 5.5, repeat: Infinity }} />
         </motion.g>
 
-        {mode === "login" && <motion.g initial={{ opacity: 0, x: -24 }} animate={{ opacity: [0, 1, 1, 0], x: [-24, 0, 0, 14] }} transition={{ duration: 6.4, times: [0, .15, .68, 1], repeat: Infinity, repeatDelay: 5 }}>
+        {(stage === "entering" || stage === "building") && <motion.g initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .45 }}>
           <rect x="48" y="358" width="72" height="44" rx="7" fill="#12272e" stroke="#70d5df" strokeOpacity=".4" /><path d="M70 358v-12h28v12" fill="none" stroke="#82999f" strokeWidth="6" /><path d="M67 379h34" stroke="#70d5df" strokeOpacity=".45" />
+        </motion.g>}
+        {scanning && <motion.g initial={{ opacity: 0, scale: .82 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: .3 }}>
+          <rect x="114" y="315" width="192" height="78" rx="12" fill="#0b2631" fillOpacity=".7" stroke="#70d5df" strokeOpacity=".6" />
+          <motion.path d="M126 328h168" stroke="#9ff6ff" strokeWidth="3" filter="url(#eyeGlow)" animate={{ y: [0, 50, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }} />
+          <path d="M139 346h52M139 362h116M229 346h45" stroke="#70d5df" strokeOpacity=".3" strokeWidth="4" strokeLinecap="round" />
         </motion.g>}
         {working && <motion.path aria-hidden d="M70 315l140-54 140 54-140 55z" fill="#2bb8ca" stroke="#70d5df" strokeOpacity=".26" animate={{ opacity: [.02, .07, .025] }} transition={{ duration: 3.8, repeat: Infinity }} />}
       </motion.svg>
@@ -194,7 +213,7 @@ function Robot({ mode, gaze }: { mode: RobotMode; gaze: Gaze }) {
   );
 }
 
-function BrandAssembly({ mode }: { mode: RobotMode }) {
+function BrandAssembly({ mode, stage }: { mode: RobotMode; stage: RobotStage }) {
   const reduced = useReducedMotion();
   if (mode === "logout") return null;
   if (mode === "loading") return (
@@ -203,14 +222,16 @@ function BrandAssembly({ mode }: { mode: RobotMode }) {
       <p className="mt-1 text-[8px] font-semibold uppercase tracking-[.18em] text-[var(--auth-muted)]">Business Intelligence para Gestão de Pedidos</p>
     </div>
   );
+  const visible = stage === "finalizing" || stage === "resting" || stage === "idle" || stage === "click" || stage === "scanning";
+  const glowing = stage === "scanning";
   return (
     <div className="pointer-events-none absolute inset-x-[8%] top-[5%] z-30 flex justify-center lg:justify-start">
-      <motion.div className="w-[250px] text-center sm:w-[300px] lg:w-[320px] lg:text-left" initial={reduced ? false : { opacity: 0, y: 24, scale: .96 }} animate={reduced ? { opacity: 1 } : { opacity: [0, 0, 1, 1], y: [24, 24, 0, 0], scale: [.96, .98, 1, 1] }} transition={{ duration: 9.5, times: [0, .28, .48, 1], repeat: Infinity, repeatDelay: 3.2 }}>
+      <motion.div className="w-[250px] text-center sm:w-[300px] lg:w-[320px] lg:text-left" initial={false} animate={{ opacity: visible ? 1 : 0, y: visible ? 0 : 18, scale: glowing ? 1.035 : visible ? 1 : .96, filter: glowing ? "drop-shadow(0 0 18px rgba(112,213,223,.38))" : "drop-shadow(0 0 0 rgba(0,0,0,0))" }} transition={{ duration: reduced ? .05 : .65, ease: [.22, 1, .36, 1] }}>
         <div className="relative">
           <Image src="/pedro-mariniello-logo.png" alt="Pedro Mariniello" width={1942} height={809} priority className="w-full object-contain" />
-          {!reduced && <motion.span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-100/80 to-transparent" animate={{ top: [0, "100%", "100%"] }} transition={{ duration: 4.3, times: [0, .65, 1], repeat: Infinity, repeatDelay: 8.4 }} />}
+          {!reduced && stage === "finalizing" && <motion.span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-100/80 to-transparent" animate={{ top: [0, "100%"] }} transition={{ duration: 1.4, ease: "easeInOut" }} />}
         </div>
-        <motion.div initial={reduced ? false : { opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduced ? 0 : 4.8, duration: .7 }} className="mt-4">
+        <motion.div initial={false} animate={{ opacity: visible ? 1 : 0, y: visible ? 0 : 7 }} transition={{ delay: stage === "finalizing" && !reduced ? .45 : 0, duration: .55 }} className="mt-4">
           <p className="text-sm font-semibold tracking-[-.01em] text-[var(--auth-title)]">Ekko Representação Logística</p>
           <p className="mt-1 text-[8px] font-semibold uppercase tracking-[.17em] text-[var(--auth-muted)]">Business Intelligence para Gestão de Pedidos</p>
         </motion.div>
@@ -219,18 +240,49 @@ function BrandAssembly({ mode }: { mode: RobotMode }) {
   );
 }
 
-export function RobotScene({ mode = "login", compact = false }: { mode?: RobotMode; compact?: boolean }) {
+export function RobotScene({ mode = "login", compact = false, active = false }: { mode?: RobotMode; compact?: boolean; active?: boolean }) {
   const [gaze, setGaze] = useState<Gaze>({ x: 0, y: 0 });
+  const [stage, setStage] = useState<RobotStage>(mode === "loading" ? "loading" : mode === "logout" ? "logout" : "entering");
+  const stageBeforeClick = useRef<RobotStage>("idle");
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (mode === "loading") { setStage("loading"); return; }
+    if (mode === "logout") { setStage("logout"); return; }
+    if (active) { setStage("scanning"); return; }
+    const sequence: Array<[RobotStage, number]> = [
+      ["entering", 0],
+      ["building", 1500],
+      ["finalizing", 5100],
+      ["resting", 7350],
+      ["idle", 8750],
+    ];
+    const timers = sequence.map(([next, delay]) => setTimeout(() => setStage(next), delay));
+    return () => timers.forEach(clearTimeout);
+  }, [mode, active]);
+
   const track = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     setGaze({ x: Math.max(-1, Math.min(1, (event.clientX - bounds.left) / bounds.width * 2 - 1)), y: Math.max(-1, Math.min(1, (event.clientY - bounds.top) / bounds.height * 2 - 1)) });
   };
+  const reactToClick = (event: PointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setGaze({ x: Math.max(-1, Math.min(1, (event.clientX - bounds.left) / bounds.width * 2 - 1)), y: Math.max(-1, Math.min(1, (event.clientY - bounds.top) / bounds.height * 2 - 1)) });
+    if (mode !== "login" || active) return;
+    stageBeforeClick.current = stage === "click" ? stageBeforeClick.current : stage;
+    setStage("click");
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+    clickTimer.current = setTimeout(() => setStage(stageBeforeClick.current), 620);
+  };
+
+  useEffect(() => () => { if (clickTimer.current) clearTimeout(clickTimer.current); }, []);
+
   return (
-    <div onPointerMove={track} onPointerLeave={() => setGaze({ x: 0, y: 0 })} className={`auth-stage relative isolate overflow-hidden ${compact ? "min-h-[300px]" : "h-full min-h-[420px]"}`}>
-      <ParticleCanvas /><CircuitField /><HologramAssembly mode={mode} />
+    <div data-robot-stage={stage} onPointerMove={track} onPointerDown={reactToClick} onPointerLeave={() => setGaze({ x: 0, y: 0 })} className={`auth-stage relative isolate overflow-hidden ${compact ? "min-h-[300px]" : "h-full min-h-[420px]"}`}>
+      <ParticleCanvas /><CircuitField /><HologramAssembly mode={mode} stage={stage} />
       <div aria-hidden className="absolute left-1/2 top-[44%] size-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/[.055] blur-[110px]" />
-      <BrandAssembly mode={mode} />
-      <div className={`absolute inset-x-0 z-20 flex justify-center ${compact ? "bottom-[-54px]" : "bottom-[-38px]"}`}><Robot mode={mode} gaze={gaze} /></div>
+      <BrandAssembly mode={mode} stage={stage} />
+      <div className={`absolute inset-x-0 z-20 flex justify-center ${compact ? "bottom-[-54px]" : "bottom-[-38px]"}`}><Robot mode={mode} stage={stage} gaze={gaze} /></div>
       <div aria-hidden className="absolute bottom-[10%] left-1/2 z-10 h-px w-[68%] -translate-x-1/2 bg-gradient-to-r from-transparent via-cyan-200/22 to-transparent" />
       {!compact && <DeveloperSignature inverse className="absolute bottom-5 left-6 z-40 hidden sm:flex lg:left-10" />}
     </div>

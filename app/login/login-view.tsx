@@ -126,7 +126,7 @@ export function LoginView({
   return (
     <main className="auth-shell grid min-h-screen overflow-x-hidden bg-[var(--auth-bg)] lg:h-screen lg:grid-cols-[1.1fr_.9fr]">
       <section className="relative min-h-[345px] overflow-hidden border-b border-[var(--auth-border)] lg:min-h-screen lg:border-b-0 lg:border-r">
-        <RobotScene mode="login" />
+        <RobotScene mode="login" active={isSubmitting} />
         <div className="pointer-events-none absolute bottom-5 left-6 z-40 hidden items-center gap-2 text-[9px] font-medium uppercase tracking-[.16em] text-[var(--auth-muted)] sm:flex lg:left-10">
           <ShieldCheck size={13} className="text-cyan-500" />
           Ambiente corporativo protegido
@@ -322,7 +322,7 @@ export function LoginView({
           </motion.div>
           <motion.div variants={item} className="mt-7 flex flex-col items-center gap-2">
             <DeveloperSignature inverse />
-            <p className="text-center text-[9px] text-[var(--auth-muted)]">© Ekko Revestimentos · v1.5.0</p>
+            <p className="text-center text-[9px] text-[var(--auth-muted)]">© Ekko Revestimentos · v1.6.0</p>
           </motion.div>
         </motion.div>
       </section>

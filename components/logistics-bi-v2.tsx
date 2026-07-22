@@ -1788,7 +1788,7 @@ function ReportsView({ data }: { data: DashboardData }) {
       )
       .join("");
     popup.document.write(
-      `<!doctype html><html><head><title>${title}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial;color:#142126}header{display:flex;align-items:center;gap:20px;border-bottom:3px solid #0e7182;padding-bottom:14px}header img{width:88px;border:1px solid #dce5e6;border-radius:8px}.meta{font-size:11px;color:#667}h1{font-size:21px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}.card{border:1px solid #d9e2e3;padding:12px;border-radius:8px}.card small{color:#667}.card b{display:block;margin-top:6px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:8px;border-bottom:1px solid #d9e2e3;text-align:left}th{background:#f1f5f6}footer{position:fixed;bottom:0;border-top:1px solid #d9e2e3;width:100%;padding-top:8px;font-size:9px;color:#667}</style></head><body><header><img src="${location.origin}/ekko-logo.png"><div><h1>Ekko Representação Logística</h1><div>${title}</div><p class="meta">Gerado em ${new Date().toLocaleString("pt-BR")} • Usuário: representacao@ekkorevestimentos.com.br</p></div></header><div class="cards"><div class="card"><small>Pedidos</small><b>${data.metrics.total}</b></div><div class="card"><small>Valor</small><b>${money.format(data.metrics.totalValue)}</b></div><div class="card"><small>Entregues</small><b>${data.metrics.delivered}</b></div></div><table><thead><tr><th>Fornecedor</th><th>Pedidos</th><th>Valor</th><th>SLA</th></tr></thead><tbody>${rows}</tbody></table><footer>Ekko Representação Logística • Versão 1.5.0 • Desenvolvido por Pedro Mariniello</footer></body></html>`,
+      `<!doctype html><html><head><title>${title}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial;color:#142126}header{display:flex;align-items:center;gap:20px;border-bottom:3px solid #0e7182;padding-bottom:14px}header img{width:88px;border:1px solid #dce5e6;border-radius:8px}.meta{font-size:11px;color:#667}h1{font-size:21px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}.card{border:1px solid #d9e2e3;padding:12px;border-radius:8px}.card small{color:#667}.card b{display:block;margin-top:6px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:8px;border-bottom:1px solid #d9e2e3;text-align:left}th{background:#f1f5f6}footer{position:fixed;bottom:0;border-top:1px solid #d9e2e3;width:100%;padding-top:8px;font-size:9px;color:#667}</style></head><body><header><img src="${location.origin}/ekko-logo.png"><div><h1>Ekko Representação Logística</h1><div>${title}</div><p class="meta">Gerado em ${new Date().toLocaleString("pt-BR")} • Usuário: representacao@ekkorevestimentos.com.br</p></div></header><div class="cards"><div class="card"><small>Pedidos</small><b>${data.metrics.total}</b></div><div class="card"><small>Valor</small><b>${money.format(data.metrics.totalValue)}</b></div><div class="card"><small>Entregues</small><b>${data.metrics.delivered}</b></div></div><table><thead><tr><th>Fornecedor</th><th>Pedidos</th><th>Valor</th><th>SLA</th></tr></thead><tbody>${rows}</tbody></table><footer>Ekko Representação Logística • Versão 1.6.0 • Desenvolvido por Pedro Mariniello</footer></body></html>`,
     );
     popup.document.close();
     setTimeout(() => popup.print(), 400);
@@ -1943,7 +1943,7 @@ function AboutView() {
             ))}
           </div>
           <p className="mt-6 text-xs text-[var(--muted)]">
-            Versão 1.5.0
+            Versão 1.6.0
           </p>
           <DeveloperSignature className="mt-3" />
         </Card>
@@ -2175,7 +2175,7 @@ export function LogisticsBIV2() {
         <div className="space-y-1 border-t border-[var(--border)] p-3">
           {!collapsed && (
             <div className="mb-3 px-2 pt-1">
-              <p className="text-[9px] text-[var(--muted)]">Versão 1.5.0</p>
+              <p className="text-[9px] text-[var(--muted)]">Versão 1.6.0</p>
               <DeveloperSignature className="mt-2" />
             </div>
           )}
@@ -2396,7 +2396,7 @@ export function LogisticsBIV2() {
         </div>
         <footer className="mx-4 flex flex-col gap-2 border-t border-[var(--border)] py-5 text-[10px] text-[var(--muted)] sm:mx-6 sm:flex-row sm:items-center sm:justify-between">
           <span>© Ekko Revestimentos</span>
-          <span>Ekko Representação Logística • Versão 1.5.0</span>
+          <span>Ekko Representação Logística • Versão 1.6.0</span>
           <DeveloperSignature />
         </footer>
       </main>
