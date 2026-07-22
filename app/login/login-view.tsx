@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { RobotScene } from "@/components/auth-experience";
+import { DeveloperSignature, EkkoBrand } from "@/components/brand";
 
 const schema = z.object({
   email: z.email("Informe um e-mail válido."),
@@ -28,7 +29,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 const fieldClass =
-  "h-12 w-full rounded-xl border border-[var(--auth-border)] bg-[var(--auth-input)] pl-10 pr-3 text-sm text-[var(--auth-title)] outline-none transition placeholder:text-[var(--auth-muted)]/60 focus:border-cyan-500/60 focus:ring-4 focus:ring-cyan-500/10";
+  "h-[52px] w-full rounded-[9px] border border-[var(--auth-border)] bg-[var(--auth-input)] pl-11 pr-3 text-sm text-[var(--auth-title)] outline-none transition placeholder:text-[var(--auth-muted)]/60 focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--focus-soft)]";
 
 export function LoginView({
   defaultEmail,
@@ -58,7 +59,7 @@ export function LoginView({
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem("pedro-theme") === "light";
+    const saved = localStorage.getItem("ekko-theme") === "light" || localStorage.getItem("pedro-theme") === "light";
     document.documentElement.dataset.theme = saved ? "light" : "dark";
     const frame = requestAnimationFrame(() => {
       setLight(saved);
@@ -74,7 +75,7 @@ export function LoginView({
     const next = !light;
     setLight(next);
     document.documentElement.dataset.theme = next ? "light" : "dark";
-    localStorage.setItem("pedro-theme", next ? "light" : "dark");
+    localStorage.setItem("ekko-theme", next ? "light" : "dark");
   };
 
   const submit = handleSubmit(async (values) => {
@@ -104,7 +105,7 @@ export function LoginView({
     visible: {
       transition: {
         staggerChildren: reduced ? 0 : 0.08,
-        delayChildren: reduced ? 0 : 5.2,
+        delayChildren: reduced ? 0 : 0.18,
       },
     },
   };
@@ -123,7 +124,7 @@ export function LoginView({
   };
 
   return (
-    <main className="auth-shell grid min-h-screen overflow-x-hidden bg-[var(--auth-bg)] lg:h-screen lg:grid-cols-[1.15fr_.85fr]">
+    <main className="auth-shell grid min-h-screen overflow-x-hidden bg-[var(--auth-bg)] lg:h-screen lg:grid-cols-[1.1fr_.9fr]">
       <section className="relative min-h-[345px] overflow-hidden border-b border-[var(--auth-border)] lg:min-h-screen lg:border-b-0 lg:border-r">
         <RobotScene mode="login" />
         <div className="pointer-events-none absolute bottom-5 left-6 z-40 hidden items-center gap-2 text-[9px] font-medium uppercase tracking-[.16em] text-[var(--auth-muted)] sm:flex lg:left-10">
@@ -136,7 +137,7 @@ export function LoginView({
         <button
           onClick={toggleTheme}
           aria-label={light ? "Ativar tema escuro" : "Ativar tema claro"}
-          className="absolute right-5 top-5 grid size-10 place-items-center rounded-xl border border-[var(--auth-border)] bg-[var(--auth-input)] text-[var(--auth-muted)] transition hover:border-cyan-500/30 hover:text-[var(--auth-title)]"
+        className="absolute right-5 top-5 grid size-10 place-items-center rounded-[9px] border border-[var(--auth-border)] bg-[var(--auth-input)] text-[var(--auth-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--auth-title)]"
         >
           {light ? <Moon size={17} /> : <Sun size={17} />}
         </button>
@@ -146,18 +147,8 @@ export function LoginView({
           animate="visible"
           className="w-full max-w-[430px]"
         >
-          <motion.div variants={item} className="mb-8 flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-indigo-500/15 to-cyan-400/10 text-sm font-bold text-cyan-500 shadow-[0_0_30px_rgba(34,211,238,.08)]">
-              PM
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[var(--auth-title)]">
-                Ekko Representação Logística
-              </p>
-              <p className="mt-1 text-[9px] uppercase tracking-[.13em] text-[var(--auth-muted)]">
-                Business Intelligence para Gestão de Pedidos
-              </p>
-            </div>
+          <motion.div variants={item} className="mb-10">
+            <EkkoBrand inverse />
           </motion.div>
           <motion.p
             variants={item}
@@ -169,7 +160,7 @@ export function LoginView({
             variants={item}
             className="mt-3 text-3xl font-semibold tracking-[-.035em] text-[var(--auth-title)] sm:text-[2.15rem]"
           >
-            Bem-vindo ao seu centro de inteligência.
+            Bem-vindo.
           </motion.h1>
           <motion.p
             variants={item}
@@ -186,7 +177,7 @@ export function LoginView({
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="mt-5 flex items-start gap-3 rounded-xl border border-cyan-500/20 bg-cyan-500/[.07] p-3 text-xs text-[var(--auth-title)]"
+                className="mt-5 flex items-start gap-3 rounded-[9px] border border-cyan-500/20 bg-cyan-500/[.07] p-3 text-xs text-[var(--auth-title)]"
               >
                 <Info size={16} className="mt-px shrink-0 text-cyan-500" />
                 {information}
@@ -198,7 +189,7 @@ export function LoginView({
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="mt-5 flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/[.07] p-3 text-xs text-rose-500"
+                className="mt-5 flex items-start gap-3 rounded-[9px] border border-red-500/20 bg-red-500/[.07] p-3 text-xs text-[var(--danger)]"
               >
                 <Info size={16} className="mt-px shrink-0" />
                 {serverError}
@@ -228,7 +219,7 @@ export function LoginView({
                 />
               </div>
               {errors.email && (
-                <span className="mt-1.5 block text-[11px] text-rose-500">
+                <span className="mt-1.5 block text-[11px] text-[var(--danger)]">
                   {errors.email.message}
                 </span>
               )}
@@ -259,7 +250,7 @@ export function LoginView({
                 </button>
               </div>
               {errors.password && (
-                <span className="mt-1.5 block text-[11px] text-rose-500">
+                <span className="mt-1.5 block text-[11px] text-[var(--danger)]">
                   {errors.password.message}
                 </span>
               )}
@@ -272,7 +263,7 @@ export function LoginView({
                 <input
                   type="checkbox"
                   {...register("remember")}
-                  className="size-4 rounded accent-cyan-500"
+                  className="size-4 rounded accent-[var(--primary)]"
                 />
                 Lembrar dispositivo
               </label>
@@ -283,7 +274,7 @@ export function LoginView({
                     "Para redefinir a senha, entre em contato com o administrador responsável pelo sistema.",
                   )
                 }
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-cyan-600 transition hover:text-cyan-500"
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--primary)] transition hover:text-[var(--accent)]"
               >
                 <HelpCircle size={13} />
                 Esqueci minha senha
@@ -294,7 +285,7 @@ export function LoginView({
               whileHover={reduced ? undefined : { scale: 1.012 }}
               whileTap={reduced ? undefined : { scale: 0.99 }}
               disabled={isSubmitting}
-              className="group relative inline-flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 text-sm font-semibold text-white shadow-[0_12px_34px_rgba(79,70,229,.22)] transition disabled:cursor-not-allowed disabled:opacity-60"
+              className="group relative inline-flex h-[52px] w-full items-center justify-center gap-2 overflow-hidden rounded-[9px] bg-[var(--primary)] text-sm font-semibold text-white shadow-[0_10px_26px_rgba(6,89,105,.2)] transition hover:bg-[var(--primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="absolute inset-0 translate-x-[-110%] bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-[110%]" />
               {isSubmitting ? (
@@ -316,7 +307,7 @@ export function LoginView({
 
           <motion.div
             variants={item}
-            className="mt-6 flex items-start gap-3 rounded-xl border border-[var(--auth-border)] bg-[var(--auth-soft)] p-4"
+            className="mt-6 flex items-start gap-3 rounded-[9px] border border-[var(--auth-border)] bg-[var(--auth-soft)] p-4"
           >
             <ShieldCheck
               size={16}
@@ -329,12 +320,10 @@ export function LoginView({
               Sua senha não é armazenada no navegador nem enviada ao GitHub.
             </p>
           </motion.div>
-          <motion.p
-            variants={item}
-            className="mt-7 text-center text-[9px] text-[var(--auth-muted)]"
-          >
-            © Ekko Revestimentos · Desenvolvido por Pedro Mariniello · v1.3.0
-          </motion.p>
+          <motion.div variants={item} className="mt-7 flex flex-col items-center gap-2">
+            <DeveloperSignature inverse />
+            <p className="text-center text-[9px] text-[var(--auth-muted)]">© Ekko Revestimentos · v1.4.0</p>
+          </motion.div>
         </motion.div>
       </section>
     </main>

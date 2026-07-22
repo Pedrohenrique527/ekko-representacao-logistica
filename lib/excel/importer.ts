@@ -40,7 +40,10 @@ export type ImportResult = {
 
 const aliases = {
   sentAt: ["enviadoem"],
-  expectedAt: ["recebimentoprevistopara", "previsaoentrega"],
+  // A planilha oficial possui tanto "Recebimento previsto para" quanto
+  // "VENCIMENTO". Para os pedidos ativos, a data exibida como previsão de
+  // entrega é exclusivamente o vencimento calculado pela planilha.
+  expectedAt: ["vencimento", "datadevencimento"],
   supplier: ["nomefornec", "fornecedor", "fornece"],
   value: ["valortotal", "valor"],
   order: ["pedido", "numeropedido", "npedido"],

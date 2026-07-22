@@ -12,7 +12,7 @@ const env = Object.fromEntries(fs.readFileSync(new URL("../.env", import.meta.ur
 if (!env.DATABASE_URL) throw new Error("DATABASE_URL não configurada.");
 
 const aliases = {
-  sentAt: ["enviadoem"], expectedAt: ["recebimentoprevistopara", "previsaoentrega"],
+  sentAt: ["enviadoem"], expectedAt: ["vencimento", "datadevencimento"],
   supplier: ["nomefornec", "fornecedor", "fornece"], value: ["valortotal", "valor"],
   order: ["pedido", "numeropedido", "npedido"], carrier: ["transport", "transportadora"],
   deliveredAt: ["dtentrega", "dataentrega"], deadlineStatus: ["statuadevencimeno", "statusdevencimento", "statusvencimento"],

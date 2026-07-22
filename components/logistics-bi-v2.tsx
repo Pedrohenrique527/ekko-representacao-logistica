@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import {
   Activity,
   AlertTriangle,
@@ -77,6 +76,7 @@ import {
 } from "@/lib/dashboard-data";
 import { parseExcelFile, type ImportResult } from "@/lib/excel/importer";
 import { AuthLoadingScreen, LogoutDialog } from "@/components/auth-experience";
+import { DeveloperSignature, EkkoBrand } from "@/components/brand";
 
 type PageId =
   | "dashboard"
@@ -199,7 +199,7 @@ const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
 const statusClasses: Record<OrderStatus, string> = {
   "No prazo": "border-emerald-500/25 bg-emerald-500/10 text-emerald-500",
   Vencendo: "border-amber-500/25 bg-amber-500/10 text-amber-500",
-  Vencido: "border-rose-500/25 bg-rose-500/10 text-rose-500",
+  Vencido: "border-red-500/25 bg-red-500/10 text-[var(--danger)]",
   Entregue: "border-cyan-500/25 bg-cyan-500/10 text-cyan-500",
   Outros: "border-slate-500/25 bg-slate-500/10 text-slate-500",
 };
@@ -218,24 +218,17 @@ const monthNames = [
   "Dez",
 ];
 
+function statusColor(name: string) {
+  const normalized = name.toLocaleLowerCase("pt-BR");
+  if (normalized.includes("entreg")) return "var(--accent)";
+  if (normalized.includes("vencendo")) return "var(--warning)";
+  if (normalized.includes("vencido")) return "var(--danger)";
+  if (normalized.includes("prazo")) return "var(--success)";
+  return "var(--muted)";
+}
+
 function BrandLogo({ compact = false }: { compact?: boolean }) {
-  return (
-    <div
-      className={cn(
-        "flex items-center overflow-hidden rounded-xl bg-black ring-1 ring-white/10",
-        compact ? "h-10 w-12" : "h-14 w-[190px]",
-      )}
-    >
-      <Image
-        src="/pedro-mariniello-logo.png"
-        alt="Pedro Mariniello"
-        width={1942}
-        height={809}
-        priority
-        className="h-full w-full object-contain"
-      />
-    </div>
-  );
+  return <EkkoBrand compact={compact} />;
 }
 
 function MetricCard({
@@ -244,45 +237,53 @@ function MetricCard({
   icon: Icon,
   tone = "brand",
   detail,
+  tooltip,
 }: {
   label: string;
   value: string;
   icon: ElementType;
   tone?: "brand" | "green" | "amber" | "red" | "cyan";
   detail?: string;
+  tooltip: string;
 }) {
   const tones = {
-    brand: "from-indigo-500/18 to-violet-500/5 text-indigo-500",
-    green: "from-emerald-500/18 to-emerald-500/5 text-emerald-500",
-    amber: "from-amber-500/18 to-amber-500/5 text-amber-500",
-    red: "from-rose-500/18 to-rose-500/5 text-rose-500",
-    cyan: "from-cyan-500/18 to-cyan-500/5 text-cyan-500",
+    brand: "bg-[var(--primary-soft)] text-[var(--primary)]",
+    green: "bg-emerald-500/10 text-[var(--success)]",
+    amber: "bg-orange-500/10 text-[var(--warning)]",
+    red: "bg-red-500/10 text-[var(--danger)]",
+    cyan: "bg-cyan-500/10 text-[var(--accent)]",
   };
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow)]"
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.18 }}
+      className="group relative min-h-[156px] rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] transition-colors hover:border-[var(--border-strong)]"
     >
       <div className="flex items-start justify-between">
         <div
           className={cn(
-            "grid size-10 place-items-center rounded-xl bg-gradient-to-br",
+            "grid size-9 place-items-center rounded-[9px]",
             tones[tone],
           )}
         >
           <Icon size={18} />
         </div>
-        {detail && (
-          <span className="text-[10px] font-medium text-[var(--muted)]">
-            {detail}
+        <div className="flex items-center gap-2">
+          {detail && <span className="text-[10px] font-medium text-[var(--muted)]">{detail}</span>}
+          <button type="button" aria-label={`Explicar ${label}`} className="peer grid size-7 place-items-center rounded-[7px] text-[var(--muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus-visible:text-[var(--text)]">
+            <Info size={14} />
+          </button>
+          <span role="tooltip" className="pointer-events-none absolute right-3 top-12 z-20 w-64 translate-y-1 rounded-[9px] border border-[var(--border-strong)] bg-[var(--surface-3)] p-3 text-left text-[11px] font-normal leading-5 text-[var(--text)] opacity-0 shadow-xl transition duration-150 peer-hover:translate-y-0 peer-hover:opacity-100 peer-focus-visible:translate-y-0 peer-focus-visible:opacity-100">
+            {tooltip}
           </span>
-        )}
+        </div>
       </div>
-      <p className="mt-5 text-[10px] font-semibold uppercase tracking-[.11em] text-[var(--muted)]">
+      <p className="mt-4 min-h-8 text-[11px] font-medium leading-4 text-[var(--muted)]">
         {label}
       </p>
-      <p className="mt-1 text-[22px] font-semibold tracking-tight text-[var(--text)]">
+      <p className="mt-1 text-[22px] font-semibold tracking-[-0.025em] text-[var(--text)]">
         {value}
       </p>
     </motion.div>
@@ -345,23 +346,18 @@ function DashboardView({
 
   return (
     <div className="space-y-5">
-      <Card className="relative overflow-hidden border-indigo-500/20 bg-[linear-gradient(135deg,var(--hero-a),var(--hero-b))] p-6 sm:p-8">
-        <div className="absolute -right-16 -top-20 size-72 rounded-full bg-violet-500/15 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 size-52 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
+      <section className="border-b border-[var(--border)] pb-5 pt-1">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <BrandLogo />
-            <p className="mt-5 text-[10px] font-semibold uppercase tracking-[.2em] text-cyan-400">
-              Ekko Revestimentos
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[var(--primary)]">Visão geral</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-[var(--text)] sm:text-[28px]">
               Ekko Representação Logística
             </h2>
-            <p className="mt-2 text-sm text-slate-300">
-              Inteligência confiável para pedidos de representação
+            <p className="mt-1.5 text-sm text-[var(--muted)]">
+              Business Intelligence para gestão de pedidos de representação
             </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[570px]">
+          <div className="grid gap-x-8 gap-y-3 sm:grid-cols-3">
             {[
               [
                 "ÚLTIMA ATUALIZAÇÃO",
@@ -375,23 +371,20 @@ function DashboardView({
                 "ARQUIVO OFICIAL",
                 data.latestImport?.fileName ?? "Nenhuma importação",
               ],
-              ["RESPONSÁVEL", "Pedro Mariniello"],
+              ["RESPONSÁVEL", "Representação Ekko"],
             ].map(([label, value]) => (
-              <div
-                key={label}
-                className="rounded-xl border border-white/10 bg-black/20 p-3.5 backdrop-blur"
-              >
-                <p className="text-[9px] tracking-[.12em] text-slate-400">
+              <div key={label} className="min-w-0 border-l border-[var(--border-strong)] pl-3">
+                <p className="text-[9px] font-semibold tracking-[.1em] text-[var(--muted)]">
                   {label}
                 </p>
-                <p className="mt-1 truncate text-xs font-medium text-white">
+                <p className="mt-1.5 max-w-52 truncate text-xs font-medium text-[var(--text)]">
                   {value}
                 </p>
               </div>
             ))}
           </div>
         </div>
-      </Card>
+      </section>
       {!loading && !data.hasData && (
         <Card className="border-amber-500/25 bg-amber-500/[.06] p-5">
           <div className="flex gap-3">
@@ -442,65 +435,75 @@ function DashboardView({
           </div>
         </Card>
       )}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <MetricCard
-          label="Total"
+          label="Total de pedidos"
           value={number.format(metrics.total)}
           icon={PackageOpen}
+          tooltip="Quantidade total de pedidos válidos gravados na importação mais recente, incluindo ativos e entregues."
         />
         <MetricCard
-          label="Ativos"
+          label="Pedidos não entregues"
           value={number.format(metrics.active)}
           icon={Activity}
           tone="amber"
+          tooltip="Pedidos que continuam em acompanhamento e ainda não constam como entregues na planilha oficial."
         />
         <MetricCard
-          label="Entregues"
+          label="Pedidos entregues"
           value={number.format(metrics.delivered)}
           icon={PackageCheck}
           tone="cyan"
+          tooltip="Pedidos baixados que vieram da aba ENTREGUES da planilha oficial."
         />
         <MetricCard
-          label="No prazo"
+          label="Pedidos não entregues (dentro do prazo de entrega)"
           value={number.format(metrics.onTime)}
           icon={ShieldCheck}
           tone="green"
+          tooltip="Pedidos não entregues cujo status calculado e salvo pelo Excel indica que ainda estão dentro do prazo."
         />
         <MetricCard
-          label="Vencendo"
+          label="Pedidos não entregues (próximos ao vencimento de entrega)"
           value={number.format(metrics.expiring)}
           icon={Clock3}
           tone="amber"
+          tooltip="Pedidos não entregues que a fórmula da planilha oficial classifica como próximos do vencimento."
         />
         <MetricCard
-          label="Vencidos"
+          label="Pedidos não entregues (serão entregues com atraso)"
           value={number.format(metrics.overdue)}
           icon={AlertTriangle}
           tone="red"
+          tooltip="Pedidos não entregues que a fórmula da planilha oficial classifica como vencidos."
         />
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Valor movimentado"
+          label="Valor total de todos os pedidos (R$)"
           value={money.format(metrics.totalValue)}
           icon={CircleDollarSign}
+          tooltip="Soma do valor de todos os pedidos válidos da importação mais recente."
         />
         <MetricCard
-          label="Valor entregue"
+          label="Soma dos pedidos entregues (R$)"
           value={money.format(metrics.deliveredValue)}
           icon={PackageCheck}
           tone="cyan"
+          tooltip="Soma dos valores dos pedidos já entregues e baixados na planilha oficial."
         />
         <MetricCard
-          label="Valor pendente"
+          label="Soma dos pedidos ainda não entregues (R$)"
           value={money.format(metrics.pendingValue)}
           icon={Clock3}
           tone="amber"
+          tooltip="Soma dos valores dos pedidos que ainda permanecem em acompanhamento."
         />
         <MetricCard
-          label="Ticket médio"
+          label="Valor médio por pedido (R$)"
           value={money.format(metrics.averageTicket)}
           icon={TrendingUp}
+          tooltip="Valor total dos pedidos dividido pela quantidade de pedidos válidos."
         />
       </div>
       <div className="grid gap-4 xl:grid-cols-[1.65fr_1fr]">
@@ -526,14 +529,14 @@ function DashboardView({
               <AreaChart data={trendData} margin={{ left: -18, right: 10 }}>
                 <defs>
                   <linearGradient
-                    id="pedroGradient"
+                    id="ekkoAreaGradient"
                     x1="0"
                     y1="0"
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="0" stopColor="#6366f1" stopOpacity={0.32} />
-                    <stop offset="1" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="0" stopColor="var(--accent)" stopOpacity={0.28} />
+                    <stop offset="1" stopColor="var(--accent)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
@@ -554,16 +557,17 @@ function DashboardView({
                   contentStyle={{
                     background: "var(--surface)",
                     border: "1px solid var(--border)",
-                    borderRadius: 12,
+                    borderRadius: 10,
                     color: "var(--text)",
+                    boxShadow: "var(--shadow)",
                   }}
                 />
                 <Area
                   type="monotone"
                   dataKey="pedidos"
-                  stroke="#6366f1"
-                  fill="url(#pedroGradient)"
-                  strokeWidth={2.5}
+                  stroke="var(--accent)"
+                  fill="url(#ekkoAreaGradient)"
+                  strokeWidth={2.25}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -587,15 +591,16 @@ function DashboardView({
                     stroke="none"
                   >
                     {statusData.map((item) => (
-                      <Cell key={item.name} fill={item.color} />
+                      <Cell key={item.name} fill={statusColor(item.name)} />
                     ))}
                   </Pie>
                   <Tooltip
                     contentStyle={{
                       background: "var(--surface)",
                       border: "1px solid var(--border)",
-                      borderRadius: 12,
+                      borderRadius: 10,
                       color: "var(--text)",
+                      boxShadow: "var(--shadow)",
                     }}
                   />
                 </PieChart>
@@ -607,7 +612,7 @@ function DashboardView({
                   <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
                     <span
                       className="size-2 rounded-full"
-                      style={{ background: item.color }}
+                      style={{ background: statusColor(item.name) }}
                     />
                     {item.name}
                   </div>
@@ -686,11 +691,12 @@ function DashboardView({
                     contentStyle={{
                       background: "var(--surface)",
                       border: "1px solid var(--border)",
-                      borderRadius: 12,
+                      borderRadius: 10,
                       color: "var(--text)",
+                      boxShadow: "var(--shadow)",
                     }}
                   />
-                  <Bar dataKey="valor" fill="#00b8e6" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="valor" fill="var(--accent)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -731,7 +737,7 @@ function DashboardView({
                   </p>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400"
+                      className="h-full rounded-full bg-[var(--primary)]"
                       style={{
                         width: `${suppliers[0]?.value ? (supplier.value / suppliers[0].value) * 100 : 0}%`,
                       }}
@@ -786,11 +792,11 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.97, y: 8 }}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+        className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[14px] border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] p-5">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-500">
+            <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-[var(--primary)]">
               Detalhes do pedido
             </p>
             <h3 className="mt-1 text-lg font-semibold text-[var(--text)]">
@@ -911,9 +917,9 @@ function OrdersTable({
           <div className="flex flex-wrap gap-2">
             {!compact && (
               <>
-                <div className="relative">
+                <div className="group/search relative">
                   <Search
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] transition-transform duration-200 group-focus-within/search:translate-x-0.5 group-focus-within/search:text-[var(--primary)]"
                     size={14}
                   />
                   <Input
@@ -975,7 +981,7 @@ function OrdersTable({
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[940px] text-left">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-[var(--surface)]">
               <tr className="border-b border-[var(--border)] text-[9px] uppercase tracking-[.09em] text-[var(--muted)]">
                 <th className="px-5 py-3">Pedido</th>
                 <th className="px-3 py-3">Cliente</th>
@@ -991,9 +997,9 @@ function OrdersTable({
               {visible.map((order) => (
                 <tr
                   key={order.id}
-                  className="transition hover:bg-[var(--surface-2)]"
+                  className="transition-colors hover:bg-[var(--surface-2)]"
                 >
-                  <td className="px-5 py-3.5 text-xs font-semibold text-indigo-500">
+                  <td className="px-5 py-3.5 text-xs font-semibold text-[var(--primary)]">
                     {order.order}
                   </td>
                   <td className="max-w-[190px] truncate px-3 text-xs text-[var(--text)]">
@@ -1196,9 +1202,9 @@ function ImportView({
         </div>
         <button
           onClick={() => inputRef.current?.click()}
-          className="mt-5 flex min-h-[320px] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-8 text-center transition hover:border-indigo-500/60"
+          className="mt-5 flex min-h-[320px] w-full flex-col items-center justify-center rounded-[14px] border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-8 text-center transition hover:border-[var(--primary)]"
         >
-          <div className="grid size-14 place-items-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+          <div className="grid size-14 place-items-center rounded-[12px] bg-[var(--primary-soft)] text-[var(--primary)]">
             <FileSpreadsheet size={26} />
           </div>
           <h4 className="mt-5 text-base font-semibold text-[var(--text)]">
@@ -1208,7 +1214,7 @@ function ImportView({
             Usaremos somente Produtos a receber e ENTREGUES. As demais abas
             serão ignoradas.
           </p>
-          <span className="mt-5 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white">
+          <span className="mt-5 rounded-[9px] bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white shadow-sm">
             Escolher arquivo
           </span>
         </button>
@@ -1236,7 +1242,7 @@ function ImportView({
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--border)]">
               <motion.div
                 animate={{ width: `${progress}%` }}
-                className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400"
+                className="h-full bg-[var(--primary)]"
               />
             </div>
           </div>
@@ -1291,7 +1297,7 @@ function ImportView({
               [ClipboardCheck, "Auditoria", "Totais e linhas são conciliados."],
             ].map(([Icon, title, text]) => (
               <div key={String(title)} className="flex gap-3">
-                <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-indigo-500/10 text-indigo-500">
+                <div className="grid size-9 shrink-0 place-items-center rounded-[9px] bg-[var(--primary-soft)] text-[var(--primary)]">
                   <Icon size={16} />
                 </div>
                 <div>
@@ -1327,7 +1333,7 @@ function MiniStat({
         {ok ? (
           <Check size={14} className="text-emerald-500" />
         ) : (
-          <XCircle size={14} className="text-rose-500" />
+          <XCircle size={14} className="text-[var(--danger)]" />
         )}
       </div>
       <p className="mt-2 text-lg font-semibold text-[var(--text)]">{value}</p>
@@ -1446,7 +1452,7 @@ function VerificationPanel() {
                   {ok ? (
                     <Check className="text-emerald-500" size={17} />
                   ) : (
-                    <XCircle className="text-rose-500" size={17} />
+                    <XCircle className="text-[var(--danger)]" size={17} />
                   )}
                   <span className="text-xs font-medium text-[var(--text)]">
                     {label as string}
@@ -1498,7 +1504,7 @@ function VerificationPanel() {
                         (result.databaseStatuses[status] ?? 0) ? (
                           <Check size={16} className="text-emerald-500" />
                         ) : (
-                          <XCircle size={16} className="text-rose-500" />
+                          <XCircle size={16} className="text-[var(--danger)]" />
                         )}
                       </td>
                     </tr>
@@ -1513,7 +1519,7 @@ function VerificationPanel() {
               ou status.
             </div>
           ) : (
-            <div className="rounded-xl border border-rose-500/20 bg-rose-500/[.06] p-4 text-xs text-rose-600">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/[.06] p-4 text-xs text-[var(--danger)]">
               {result.mismatchCount} divergências encontradas. As primeiras
               ocorrências foram registradas para revisão.
             </div>
@@ -1555,7 +1561,7 @@ function AuditView({
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-500">
+              <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-[var(--primary)]">
                 Última importação
               </p>
               <h3 className="mt-2 text-sm font-semibold text-[var(--text)]">
@@ -1679,7 +1685,7 @@ function SuppliersView({ suppliers }: { suppliers: SupplierSummary[] }) {
                 <td className="px-3 text-xs font-semibold text-[var(--text)]">
                   {money.format(supplier.value)}
                 </td>
-                <td className="px-3 text-xs text-rose-500">{supplier.late}</td>
+                <td className="px-3 text-xs text-[var(--danger)]">{supplier.late}</td>
                 <td className="px-5 text-xs font-semibold text-emerald-500">
                   {supplier.sla}%
                 </td>
@@ -1732,7 +1738,7 @@ function HealthView({ data }: { data: DashboardData }) {
         </div>
       </Card>
       <Card className="p-5">
-        <div className="flex items-center gap-2 text-indigo-500">
+        <div className="flex items-center gap-2 text-[var(--primary)]">
           <Sparkles size={17} />
           <h3 className="text-sm font-semibold">Leitura responsável</h3>
         </div>
@@ -1782,7 +1788,7 @@ function ReportsView({ data }: { data: DashboardData }) {
       )
       .join("");
     popup.document.write(
-      `<!doctype html><html><head><title>${title}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial;color:#16181f}header{display:flex;align-items:center;gap:20px;border-bottom:3px solid #5b5cff;padding-bottom:14px}header img{width:180px;background:#000;border-radius:8px}.meta{font-size:11px;color:#667}h1{font-size:21px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}.card{border:1px solid #ddd;padding:12px;border-radius:8px}.card small{color:#667}.card b{display:block;margin-top:6px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}th{background:#f1f2f8}footer{position:fixed;bottom:0;border-top:1px solid #ddd;width:100%;padding-top:8px;font-size:9px;color:#667}</style></head><body><header><img src="${location.origin}/pedro-mariniello-logo.png"><div><h1>Ekko Representação Logística</h1><div>${title}</div><p class="meta">Gerado em ${new Date().toLocaleString("pt-BR")} • Pedro Mariniello</p></div></header><div class="cards"><div class="card"><small>Pedidos</small><b>${data.metrics.total}</b></div><div class="card"><small>Valor</small><b>${money.format(data.metrics.totalValue)}</b></div><div class="card"><small>Entregues</small><b>${data.metrics.delivered}</b></div></div><table><thead><tr><th>Fornecedor</th><th>Pedidos</th><th>Valor</th><th>SLA</th></tr></thead><tbody>${rows}</tbody></table><footer>Ekko Representação Logística • Versão 1.3.0 • Desenvolvido por Pedro Mariniello</footer></body></html>`,
+      `<!doctype html><html><head><title>${title}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial;color:#142126}header{display:flex;align-items:center;gap:20px;border-bottom:3px solid #0e7182;padding-bottom:14px}header img{width:88px;border:1px solid #dce5e6;border-radius:8px}.meta{font-size:11px;color:#667}h1{font-size:21px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}.card{border:1px solid #d9e2e3;padding:12px;border-radius:8px}.card small{color:#667}.card b{display:block;margin-top:6px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:8px;border-bottom:1px solid #d9e2e3;text-align:left}th{background:#edf3f3}footer{position:fixed;bottom:0;border-top:1px solid #d9e2e3;width:100%;padding-top:8px;font-size:9px;color:#667}</style></head><body><header><img src="${location.origin}/ekko-logo.png"><div><h1>Ekko Representação Logística</h1><div>${title}</div><p class="meta">Gerado em ${new Date().toLocaleString("pt-BR")} • Usuário: representacao@ekkorevestimentos.com.br</p></div></header><div class="cards"><div class="card"><small>Pedidos</small><b>${data.metrics.total}</b></div><div class="card"><small>Valor</small><b>${money.format(data.metrics.totalValue)}</b></div><div class="card"><small>Entregues</small><b>${data.metrics.delivered}</b></div></div><table><thead><tr><th>Fornecedor</th><th>Pedidos</th><th>Valor</th><th>SLA</th></tr></thead><tbody>${rows}</tbody></table><footer>Ekko Representação Logística • Versão 1.4.0 • Desenvolvido por Pedro Mariniello</footer></body></html>`,
     );
     popup.document.close();
     setTimeout(() => popup.print(), 400);
@@ -1791,7 +1797,7 @@ function ReportsView({ data }: { data: DashboardData }) {
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {reports.map((name, index) => (
         <Card key={name} className="p-5">
-          <div className="grid size-11 place-items-center rounded-xl bg-indigo-500/10 text-indigo-500">
+          <div className="grid size-11 place-items-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]">
             {index % 2 ? <FileCheck2 size={20} /> : <BarChart3 size={20} />}
           </div>
           <h3 className="mt-5 text-sm font-semibold text-[var(--text)]">
@@ -1868,7 +1874,7 @@ function HistoryView({ data }: { data: DashboardData }) {
                         item.status === "COMPLETED"
                           ? "bg-emerald-500/10 text-emerald-500"
                           : item.status === "FAILED"
-                            ? "bg-rose-500/10 text-rose-500"
+                            ? "bg-red-500/10 text-[var(--danger)]"
                             : "bg-amber-500/10 text-amber-500",
                       )}
                     >
@@ -1896,18 +1902,18 @@ function HistoryView({ data }: { data: DashboardData }) {
 function AboutView() {
   return (
     <div className="space-y-4">
-      <Card className="overflow-hidden bg-[linear-gradient(135deg,var(--hero-a),var(--hero-b))] p-7">
+      <Card className="overflow-hidden p-7">
         <BrandLogo />
-        <p className="mt-6 text-[10px] font-semibold uppercase tracking-[.16em] text-cyan-400">
+        <p className="mt-6 text-[10px] font-semibold uppercase tracking-[.16em] text-[var(--primary)]">
           Software corporativo exclusivo
         </p>
-        <h2 className="mt-2 text-3xl font-semibold text-white">
+        <h2 className="mt-2 text-3xl font-semibold text-[var(--text)]">
           Ekko Representação Logística
         </h2>
-        <p className="mt-2 text-sm text-slate-300">
+        <p className="mt-2 text-sm text-[var(--muted)]">
           Business Intelligence para Pedidos de Representação
         </p>
-        <p className="mt-5 max-w-3xl text-xs leading-6 text-slate-300">
+        <p className="mt-5 max-w-3xl text-xs leading-6 text-[var(--muted)]">
           O Excel permanece como fonte oficial. O sistema lê os resultados
           salvos, valida a integridade, grava no PostgreSQL e transforma os
           registros em indicadores gerenciais auditáveis.
@@ -1930,15 +1936,16 @@ function AboutView() {
             ].map((item) => (
               <span
                 key={item}
-                className="rounded-full border border-indigo-500/20 bg-indigo-500/[.07] px-3 py-1.5 text-[10px] text-indigo-500"
+                className="rounded-full border border-[var(--border)] bg-[var(--primary-soft)] px-3 py-1.5 text-[10px] text-[var(--primary)]"
               >
                 {item}
               </span>
             ))}
           </div>
           <p className="mt-6 text-xs text-[var(--muted)]">
-            Versão 1.3.0 • Desenvolvido por Pedro Mariniello
+            Versão 1.4.0
           </p>
+          <DeveloperSignature className="mt-3" />
         </Card>
         <Card className="p-6">
           <h3 className="text-sm font-semibold text-[var(--text)]">
@@ -1956,7 +1963,7 @@ function AboutView() {
                 key={item}
                 className="flex gap-3 rounded-xl bg-[var(--surface-2)] p-3"
               >
-                <span className="grid size-6 place-items-center rounded-full bg-indigo-500/10 text-[10px] text-indigo-500">
+                <span className="grid size-6 place-items-center rounded-full bg-[var(--primary-soft)] text-[10px] text-[var(--primary)]">
                   {index + 1}
                 </span>
                 <p className="text-xs text-[var(--muted)]">{item}</p>
@@ -2043,7 +2050,7 @@ export function LogisticsBIV2() {
     }
   };
   useEffect(() => {
-    const saved = localStorage.getItem("pedro-theme") === "light";
+    const saved = localStorage.getItem("ekko-theme") === "light" || localStorage.getItem("pedro-theme") === "light";
     document.documentElement.dataset.theme = saved ? "light" : "dark";
     const frame = requestAnimationFrame(() => {
       setLight(saved);
@@ -2062,7 +2069,7 @@ export function LogisticsBIV2() {
     const next = !light;
     setLight(next);
     document.documentElement.dataset.theme = next ? "light" : "dark";
-    localStorage.setItem("pedro-theme", next ? "light" : "dark");
+    localStorage.setItem("ekko-theme", next ? "light" : "dark");
   };
   const info = pageTitles[page];
   const confirmLogout = async () => {
@@ -2120,25 +2127,16 @@ export function LogisticsBIV2() {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-[var(--border)] bg-[var(--sidebar)] transition-[width] duration-300 lg:flex",
-          collapsed ? "w-[78px]" : "w-[270px]",
+          collapsed ? "w-[72px]" : "w-[260px]",
         )}
       >
         <div
           className={cn(
-            "flex h-[100px] items-center border-b border-[var(--border)]",
-            collapsed ? "justify-center px-3" : "px-4",
+            "flex h-[88px] items-center border-b border-[var(--border)]",
+            collapsed ? "justify-center px-3" : "px-5",
           )}
         >
-          {collapsed ? (
-            <BrandLogo compact />
-          ) : (
-            <div>
-              <BrandLogo />
-              <p className="mt-2 text-[9px] font-semibold uppercase tracking-[.14em] text-[var(--muted)]">
-                Representação Logística
-              </p>
-            </div>
-          )}
+          <BrandLogo compact={collapsed} />
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-5">
           {nav.map((group) => (
@@ -2158,9 +2156,9 @@ export function LogisticsBIV2() {
                       title={collapsed ? item.label : undefined}
                       onClick={() => navigate(item.id)}
                       className={cn(
-                        "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-xs font-medium transition",
+                        "relative flex h-10 w-full items-center gap-3 rounded-[9px] px-3 text-left text-xs font-medium transition",
                         active
-                          ? "bg-gradient-to-r from-indigo-500/16 to-cyan-500/5 text-indigo-500 shadow-[inset_3px_0_0_#6366f1]"
+                          ? "bg-[var(--primary-soft)] text-[var(--accent)] before:absolute before:left-0 before:h-5 before:w-0.5 before:rounded-full before:bg-[var(--accent)]"
                           : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]",
                         collapsed && "justify-center px-0",
                       )}
@@ -2174,11 +2172,24 @@ export function LogisticsBIV2() {
             </div>
           ))}
         </nav>
-        <div className="border-t border-[var(--border)] p-3">
+        <div className="space-y-1 border-t border-[var(--border)] p-3">
+          {!collapsed && (
+            <div className="mb-3 px-2 pt-1">
+              <p className="text-[9px] text-[var(--muted)]">Versão 1.4.0</p>
+              <DeveloperSignature className="mt-2" />
+            </div>
+          )}
+          <button
+            onClick={() => setLogoutOpen(true)}
+            title="Sair do sistema"
+            className={cn("flex h-10 w-full items-center gap-3 rounded-[9px] px-3 text-xs text-[var(--muted)] transition hover:bg-red-500/[.07] hover:text-[var(--danger)]", collapsed && "justify-center")}
+          >
+            <LogOut size={16} /> {!collapsed && "Sair do sistema"}
+          </button>
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]",
+              "flex h-10 w-full items-center gap-3 rounded-[9px] px-3 text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]",
               collapsed && "justify-center",
             )}
           >
@@ -2228,7 +2239,7 @@ export function LogisticsBIV2() {
                       className={cn(
                         "mb-1 flex h-11 w-full items-center gap-3 rounded-xl px-3 text-xs",
                         page === item.id
-                          ? "bg-indigo-500/12 text-indigo-500"
+                          ? "bg-[var(--primary-soft)] text-[var(--accent)]"
                           : "text-[var(--muted)]",
                       )}
                     >
@@ -2244,7 +2255,7 @@ export function LogisticsBIV2() {
       <main
         className={cn(
           "flex min-h-screen flex-col transition-[padding] duration-300",
-          collapsed ? "lg:pl-[78px]" : "lg:pl-[270px]",
+          collapsed ? "lg:pl-[72px]" : "lg:pl-[260px]",
         )}
       >
         <header className="sticky top-0 z-30 flex min-h-[76px] items-center justify-between border-b border-[var(--border)] bg-[var(--header)] px-4 backdrop-blur-xl sm:px-6">
@@ -2259,7 +2270,7 @@ export function LogisticsBIV2() {
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <p className="hidden text-[9px] font-semibold uppercase tracking-[.14em] text-indigo-500 xl:block">
+                <p className="hidden text-[9px] font-semibold uppercase tracking-[.14em] text-[var(--primary)] xl:block">
                   EKKO REPRESENTAÇÃO LOGÍSTICA
                 </p>
                 <span className="hidden text-[var(--muted)] xl:block">/</span>
@@ -2275,7 +2286,7 @@ export function LogisticsBIV2() {
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => navigate("orders")}
-              className="hidden h-9 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-[10px] text-[var(--muted)] transition hover:text-[var(--text)] md:flex"
+              className="hidden h-9 items-center gap-2 rounded-[9px] border border-[var(--border)] bg-[var(--surface)] px-3 text-[10px] text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] md:flex"
             >
               <Search size={14} />
               Pesquisar pedidos
@@ -2302,13 +2313,13 @@ export function LogisticsBIV2() {
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 rounded-xl p-1 pr-1.5 transition hover:bg-[var(--surface-2)]"
+                className="flex items-center gap-2 rounded-[9px] p-1 pr-1.5 transition hover:bg-[var(--surface-2)]"
               >
-                <div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 text-[10px] font-bold text-white">
-                  PM
+                <div className="grid size-8 place-items-center rounded-full bg-[var(--primary)] text-[10px] font-bold text-white">
+                  ER
                 </div>
                 <div className="hidden text-left xl:block">
-                  <p className="text-[10px] font-medium text-[var(--text)]">Pedro Mariniello</p>
+                  <p className="text-[10px] font-medium text-[var(--text)]">Representação Ekko</p>
                   <p className="text-[9px] text-[var(--muted)]">Administrador</p>
                 </div>
                 <ChevronDown size={13} className={cn("hidden text-[var(--muted)] transition sm:block", userMenuOpen && "rotate-180")} />
@@ -2320,17 +2331,17 @@ export function LogisticsBIV2() {
                     initial={{ opacity: 0, y: -5, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                    className="absolute right-0 top-[calc(100%+10px)] w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl"
+                    className="absolute right-0 top-[calc(100%+10px)] w-64 overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl"
                   >
                     <div className="border-b border-[var(--border)] px-3 py-3">
-                      <p className="text-xs font-semibold text-[var(--text)]">Pedro Mariniello</p>
+                      <p className="text-xs font-semibold text-[var(--text)]">Representação Ekko</p>
                       <p className="mt-1 truncate text-[10px] text-[var(--muted)]">representacao@ekkorevestimentos.com.br</p>
                     </div>
                     <button
                       role="menuitem"
                       type="button"
                       onClick={() => { setUserMenuOpen(false); setLogoutOpen(true); }}
-                      className="mt-2 flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-xs font-medium text-rose-500 transition hover:bg-rose-500/[.07]"
+                      className="mt-2 flex h-10 w-full items-center gap-3 rounded-[9px] px-3 text-left text-xs font-medium text-[var(--danger)] transition hover:bg-red-500/[.07]"
                     >
                       <LogOut size={15} /> Sair do Sistema
                     </button>
@@ -2385,8 +2396,8 @@ export function LogisticsBIV2() {
         </div>
         <footer className="mx-4 flex flex-col gap-2 border-t border-[var(--border)] py-5 text-[10px] text-[var(--muted)] sm:mx-6 sm:flex-row sm:items-center sm:justify-between">
           <span>© Ekko Revestimentos</span>
-          <span>Ekko Representação Logística • Versão 1.3.0</span>
-          <span>Desenvolvido por Pedro Mariniello</span>
+          <span>Ekko Representação Logística • Versão 1.4.0</span>
+          <DeveloperSignature />
         </footer>
       </main>
       <LogoutDialog
