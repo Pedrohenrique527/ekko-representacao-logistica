@@ -1,34 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  --background: #071014;
-  --foreground: #edf4f4;
-  --text: #edf4f4;
-  --muted: #8fa0a5;
-  --surface: #0c171c;
-  --surface-2: #101e24;
-  --surface-3: #14262d;
-  --sidebar: #081318;
-  --header: rgba(7, 16, 20, .9);
-  --border: rgba(151, 180, 184, .13);
-  --border-strong: rgba(151, 180, 184, .25);
-  --primary: #0e7182;
-  --primary-hover: #11879a;
-  --primary-soft: rgba(35, 174, 194, .11);
-  --accent: #2bb8ca;
+  --background: #06111a;
+  --foreground: #eef5f7;
+  --text: #eef5f7;
+  --muted: #8ea1aa;
+  --surface: #0a1822;
+  --surface-2: #0f202b;
+  --surface-3: #142833;
+  --sidebar: #07141d;
+  --header: rgba(6, 17, 26, .88);
+  --border: rgba(151, 181, 191, .11);
+  --border-strong: rgba(151, 181, 191, .22);
+  --primary: #147f99;
+  --primary-hover: #1997b4;
+  --primary-soft: rgba(52, 182, 209, .1);
+  --accent: #34b6d1;
   --success: #38a57c;
   --warning: #d9822b;
   --danger: #dc626a;
-  --focus: rgba(43, 184, 202, .72);
-  --focus-soft: rgba(43, 184, 202, .13);
-  --hero-a: #09171c;
-  --hero-b: #0d252c;
-  --chart-grid: rgba(151, 180, 184, .12);
-  --chart-axis: #82969b;
-  --shadow: 0 12px 38px rgba(0, 0, 0, .18);
-  --brand: #168da2;
-  --auth-bg: #061014;
-  --auth-panel: rgba(8, 20, 25, .95);
+  --focus: rgba(52, 182, 209, .72);
+  --focus-soft: rgba(52, 182, 209, .12);
+  --hero-a: #081722;
+  --hero-b: #0c2632;
+  --chart-grid: rgba(151, 181, 191, .1);
+  --chart-axis: #8198a1;
+  --shadow: 0 14px 42px rgba(0, 5, 9, .16);
+  --brand: #178aa5;
+  --auth-bg: #051019;
+  --auth-panel: rgba(7, 19, 28, .96);
   --auth-input: rgba(255, 255, 255, .045);
   --auth-soft: rgba(255, 255, 255, .035);
   --auth-title: #f0f7f7;
@@ -38,21 +38,21 @@
 }
 
 html[data-theme="light"] {
-  --background: #f3f6f6;
-  --foreground: #102126;
-  --text: #102126;
-  --muted: #5c7075;
+  --background: #f5f7f9;
+  --foreground: #132631;
+  --text: #132631;
+  --muted: #5d717c;
   --surface: #ffffff;
-  --surface-2: #f6f8f8;
-  --surface-3: #edf2f2;
-  --sidebar: #ffffff;
-  --header: rgba(255, 255, 255, .9);
-  --border: rgba(18, 54, 62, .12);
-  --border-strong: rgba(18, 54, 62, .23);
-  --primary: #0b6979;
-  --primary-hover: #095968;
-  --primary-soft: rgba(11, 105, 121, .09);
-  --accent: #087f92;
+  --surface-2: #f7f9fb;
+  --surface-3: #eef3f6;
+  --sidebar: #fbfcfd;
+  --header: rgba(251, 252, 253, .92);
+  --border: rgba(19, 55, 72, .09);
+  --border-strong: rgba(19, 55, 72, .18);
+  --primary: #086d86;
+  --primary-hover: #075b70;
+  --primary-soft: rgba(8, 109, 134, .075);
+  --accent: #087f9c;
   --success: #237d5f;
   --warning: #b86116;
   --danger: #be424c;
@@ -62,14 +62,14 @@ html[data-theme="light"] {
   --hero-b: #e5f0f1;
   --chart-grid: rgba(18, 54, 62, .1);
   --chart-axis: #5c7075;
-  --shadow: 0 10px 30px rgba(21, 55, 62, .07);
-  --auth-bg: #edf3f3;
-  --auth-panel: rgba(255, 255, 255, .94);
-  --auth-input: rgba(241, 245, 249, .9);
-  --auth-soft: rgba(241, 245, 249, .78);
-  --auth-title: #101827;
-  --auth-muted: #5f6b7d;
-  --auth-border: rgba(15, 23, 42, .13);
+  --shadow: 0 12px 34px rgba(23, 54, 70, .065);
+  --auth-bg: #eef3f6;
+  --auth-panel: rgba(255, 255, 255, .97);
+  --auth-input: #f7f9fb;
+  --auth-soft: #f3f6f8;
+  --auth-title: #132631;
+  --auth-muted: #60747e;
+  --auth-border: rgba(19, 55, 72, .12);
   color-scheme: light;
 }
 
@@ -78,9 +78,9 @@ html[data-theme="light"] {
   --auth-muted: #8fa3a8;
   --auth-border: rgba(151, 180, 184, .16);
   background:
-    radial-gradient(circle at 48% 42%, rgba(25, 143, 160, .14), transparent 31%),
-    radial-gradient(circle at 76% 74%, rgba(43, 184, 202, .07), transparent 27%),
-    linear-gradient(145deg, #061014 0%, #091a20 52%, #050d11 100%);
+    radial-gradient(circle at 48% 42%, rgba(29, 139, 165, .13), transparent 31%),
+    radial-gradient(circle at 76% 74%, rgba(52, 182, 209, .065), transparent 27%),
+    linear-gradient(145deg, #051019 0%, #081c28 52%, #040c12 100%);
 }
 
 .auth-stage::before {
@@ -105,7 +105,7 @@ html[data-theme="light"] {
 
 * { box-sizing: border-box; }
 html { background: var(--background); }
-body { margin: 0; background: var(--background); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { margin: 0; background: var(--background); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

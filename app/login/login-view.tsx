@@ -148,7 +148,7 @@ export function LoginView({
           className="w-full max-w-[430px]"
         >
           <motion.div variants={item} className="mb-10">
-            <EkkoBrand inverse />
+            <EkkoBrand />
           </motion.div>
           <motion.p
             variants={item}
@@ -322,7 +322,7 @@ export function LoginView({
           </motion.div>
           <motion.div variants={item} className="mt-7 flex flex-col items-center gap-2">
             <DeveloperSignature inverse />
-            <p className="text-center text-[9px] text-[var(--auth-muted)]">© Ekko Revestimentos · v1.4.0</p>
+            <p className="text-center text-[9px] text-[var(--auth-muted)]">© Ekko Revestimentos · v1.5.0</p>
           </motion.div>
         </motion.div>
       </section>
