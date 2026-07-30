@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
-import { emptyDashboard, type DashboardData, type OrderStatus } from "@/lib/dashboard-data";
+import { emptyDashboard, type DashboardData, type DeliveryTiming, type OrderStatus } from "@/lib/dashboard-data";
 import { classifyOrderStatus } from "@/lib/order-status";
 import { getAuthenticatedUser } from "@/lib/auth";
 
@@ -14,6 +14,12 @@ type DbOrder = {
 const normalize = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const asDate = (value: string | null) => value ? new Date(value) : null;
 const brDate = (value: string | null) => value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value)) : "—";
+const deliveryTiming = (row: Pick<DbOrder, "deadlineStatus" | "deliveryStatus">): DeliveryTiming => {
+  const officialStatus = `${normalize(row.deadlineStatus)} ${normalize(row.deliveryStatus)}`.replace(/[^a-z0-9]/g, "");
+  if (officialStatus.includes("foradoprazo") || officialStatus.includes("atras") || officialStatus.includes("vencid") || officialStatus.includes("expirad")) return "Fora do prazo";
+  if (officialStatus.includes("dentrodoprazo") || officialStatus.includes("noprazo") || normalize(row.deliveryStatus).trim() === "ok") return "Dentro do prazo";
+  return "Não informado";
+};
 
 export async function GET() {
   try {
@@ -47,7 +53,7 @@ export async function GET() {
       hasData: true,
       latestImport: { fileName: latest.fileName, createdAt: new Date(latest.createdAt).toISOString(), integrity: Number(latest.integrityScore) },
       metrics: { total: rows.length, active: rows.length - delivered, delivered, onTime, expiring, overdue, other, totalValue, deliveredValue, pendingValue: totalValue - deliveredValue, averageTicket: rows.length ? totalValue / rows.length : 0 },
-      orders: rows.map((row, i) => ({ id: row.id, order: row.externalOrder, client: row.client ?? "—", supplier: row.supplier, representative: row.representative ?? "—", carrier: row.carrier ?? "—", invoice: row.invoice ?? "—", value: Number(row.value), status: statuses[i], sentAt: brDate(row.sentAt), dueAt: brDate(row.dueAt ?? row.expectedAt), deliveredAt: brDate(row.deliveredAt), sourceSheet: row.sourceSheet })),
+      orders: rows.map((row, i) => ({ id: row.id, order: row.externalOrder, client: row.client ?? "—", supplier: row.supplier, representative: row.representative ?? "—", carrier: row.carrier ?? "—", invoice: row.invoice ?? "—", value: Number(row.value), status: statuses[i], sentAt: brDate(row.sentAt), dueAt: brDate(row.dueAt ?? row.expectedAt), deliveredAt: brDate(row.deliveredAt), deliveryTiming: deliveryTiming(row), sourceSheet: row.sourceSheet })),
       monthlyOrders: [...monthMap.entries()].sort((a, b) => a[1].sort - b[1].sort).map(([month, item]) => ({ month, pedidos: item.pedidos, valor: item.valor })),
       statusData: [{ name: "Entregues", value: delivered, color: "#3b82f6" }, { name: "No prazo", value: onTime, color: "#22c55e" }, { name: "Vencendo", value: expiring, color: "#f59e0b" }, { name: "Vencidos", value: overdue, color: "#ef4444" }, { name: "Outros", value: other, color: "#71717a" }],
       suppliers: [...supplierMap.entries()].map(([name, item]) => ({ name: name || "Sem fornecedor", value: item.value, orders: item.orders, late: item.late, sla: item.delivered ? Math.round((item.deliveredOnTime / item.delivered) * 1000) / 10 : 0 })).sort((a, b) => b.value - a.value),

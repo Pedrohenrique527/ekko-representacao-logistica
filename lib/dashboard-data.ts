@@ -1,4 +1,5 @@
 export type OrderStatus = "No prazo" | "Vencendo" | "Vencido" | "Entregue" | "Outros";
+export type DeliveryTiming = "Dentro do prazo" | "Fora do prazo" | "Não informado";
 
 export type Order = {
   id: string;
@@ -13,6 +14,7 @@ export type Order = {
   sentAt: string;
   dueAt: string;
   deliveredAt: string;
+  deliveryTiming: DeliveryTiming;
   sourceSheet: string;
 };
 

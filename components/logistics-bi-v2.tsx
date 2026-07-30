@@ -70,6 +70,7 @@ import { cn, money, number } from "@/lib/utils";
 import {
   emptyDashboard,
   type DashboardData,
+  type DeliveryTiming,
   type Order,
   type OrderStatus,
   type SupplierSummary,
@@ -202,6 +203,16 @@ const statusClasses: Record<OrderStatus, string> = {
   Vencido: "border-red-500/25 bg-red-500/10 text-[var(--danger)]",
   Entregue: "border-cyan-500/25 bg-cyan-500/10 text-cyan-500",
   Outros: "border-slate-500/25 bg-slate-500/10 text-slate-500",
+};
+const deliveryTimingClasses: Record<DeliveryTiming, string> = {
+  "Dentro do prazo": "border-emerald-500/25 bg-emerald-500/10 text-[var(--success)]",
+  "Fora do prazo": "border-red-500/25 bg-red-500/10 text-[var(--danger)]",
+  "Não informado": "border-slate-500/25 bg-slate-500/10 text-[var(--muted)]",
+};
+const deliveryTimingLabel: Record<DeliveryTiming, string> = {
+  "Dentro do prazo": "Entregue dentro do prazo",
+  "Fora do prazo": "Entregue fora do prazo",
+  "Não informado": "Não informado na planilha",
 };
 const monthNames = [
   "Jan",
@@ -443,18 +454,18 @@ function DashboardView({
           tooltip="Quantidade total de pedidos válidos gravados na importação mais recente, incluindo ativos e entregues."
         />
         <MetricCard
-          label="Pedidos não entregues"
-          value={number.format(metrics.active)}
-          icon={Activity}
-          tone="amber"
-          tooltip="Pedidos que continuam em acompanhamento e ainda não constam como entregues na planilha oficial."
-        />
-        <MetricCard
           label="Pedidos entregues"
           value={number.format(metrics.delivered)}
           icon={PackageCheck}
           tone="cyan"
           tooltip="Pedidos baixados que vieram da aba ENTREGUES da planilha oficial."
+        />
+        <MetricCard
+          label="Pedidos não entregues"
+          value={number.format(metrics.active)}
+          icon={Activity}
+          tone="amber"
+          tooltip="Pedidos que continuam em acompanhamento e ainda não constam como entregues na planilha oficial."
         />
         <MetricCard
           label="Pedidos não entregues (dentro do prazo de entrega)"
@@ -777,6 +788,9 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
     ["Enviado em", order.sentAt],
     ["Previsão", order.dueAt],
     ["Entregue em", order.deliveredAt],
+    ...(order.status === "Entregue"
+      ? [["Prazo da entrega", deliveryTimingLabel[order.deliveryTiming]]]
+      : []),
     ["Origem", order.sourceSheet],
   ];
   return (
@@ -845,11 +859,13 @@ function OrdersTable({
   compact = false,
   onOpenAll,
   title = "Base de pedidos",
+  showDeliveryTiming = false,
 }: {
   orders: Order[];
   compact?: boolean;
   onOpenAll?: () => void;
   title?: string;
+  showDeliveryTiming?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Todos");
@@ -862,7 +878,7 @@ function OrdersTable({
       orders
         .filter(
           (order) =>
-            `${order.order} ${order.client} ${order.supplier} ${order.invoice} ${order.carrier}`
+            `${order.order} ${order.client} ${order.supplier} ${order.invoice} ${order.carrier} ${deliveryTimingLabel[order.deliveryTiming]}`
               .toLowerCase()
               .includes(query.toLowerCase()) &&
             (status === "Todos" || order.status === status),
@@ -883,9 +899,13 @@ function OrdersTable({
   const exportCsv = () => {
     const clean = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
     const csv = [
-      "Pedido;Cliente;Fornecedor;NF;Transportadora;Valor;Status",
+      showDeliveryTiming
+        ? "Pedido;Cliente;Fornecedor;NF;Transportadora;Valor;Vencimento;Data da entrega;Status;Prazo da entrega"
+        : "Pedido;Cliente;Fornecedor;NF;Transportadora;Valor;Status",
       ...filtered.map((o) =>
-        [o.order, o.client, o.supplier, o.invoice, o.carrier, o.value, o.status]
+        (showDeliveryTiming
+          ? [o.order, o.client, o.supplier, o.invoice, o.carrier, o.value, o.dueAt, o.deliveredAt, o.status, deliveryTimingLabel[o.deliveryTiming]]
+          : [o.order, o.client, o.supplier, o.invoice, o.carrier, o.value, o.status])
           .map(clean)
           .join(";"),
       ),
@@ -980,7 +1000,7 @@ function OrdersTable({
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[940px] text-left">
+          <table className={cn("w-full text-left", showDeliveryTiming ? "min-w-[1140px]" : "min-w-[940px]")}>
             <thead className="sticky top-0 z-10 bg-[var(--surface)]">
               <tr className="border-b border-[var(--border)] text-[9px] uppercase tracking-[.09em] text-[var(--muted)]">
                 <th className="px-5 py-3">Pedido</th>
@@ -988,8 +1008,9 @@ function OrdersTable({
                 <th className="px-3 py-3">Fornecedor</th>
                 <th className="px-3 py-3">NF</th>
                 <th className="px-3 py-3">Valor</th>
-                <th className="px-3 py-3">Previsão / entrega</th>
+                <th className="px-3 py-3">{showDeliveryTiming ? "Vencimento / entrega" : "Previsão / entrega"}</th>
                 <th className="px-3 py-3">Status</th>
+                {showDeliveryTiming && <th className="px-3 py-3">Prazo da entrega</th>}
                 <th className="px-5 py-3">Detalhes</th>
               </tr>
             </thead>
@@ -1015,9 +1036,12 @@ function OrdersTable({
                     {money.format(order.value)}
                   </td>
                   <td className="px-3 text-xs text-[var(--muted)]">
-                    {order.status === "Entregue"
-                      ? order.deliveredAt
-                      : order.dueAt}
+                    {showDeliveryTiming ? (
+                      <div className="space-y-1 py-2">
+                        <p><span className="text-[9px] uppercase tracking-[.06em] text-[var(--muted)]">Vencimento</span> <span className="ml-1 text-[var(--text)]">{order.dueAt}</span></p>
+                        <p><span className="text-[9px] uppercase tracking-[.06em] text-[var(--muted)]">Entrega</span> <span className="ml-1 text-[var(--text)]">{order.deliveredAt}</span></p>
+                      </div>
+                    ) : order.status === "Entregue" ? order.deliveredAt : order.dueAt}
                   </td>
                   <td className="px-3">
                     <span
@@ -1029,6 +1053,13 @@ function OrdersTable({
                       {order.status}
                     </span>
                   </td>
+                  {showDeliveryTiming && (
+                    <td className="px-3">
+                      <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold", deliveryTimingClasses[order.deliveryTiming])}>
+                        {deliveryTimingLabel[order.deliveryTiming]}
+                      </span>
+                    </td>
+                  )}
                   <td className="px-5">
                     <Button
                       variant="ghost"
@@ -1088,6 +1119,9 @@ function OrdersTable({
 
 function DeliveredView({ data }: { data: DashboardData }) {
   const delivered = data.orders.filter((order) => order.status === "Entregue");
+  const deliveredOnTime = delivered.filter((order) => order.deliveryTiming === "Dentro do prazo").length;
+  const deliveredLate = delivered.filter((order) => order.deliveryTiming === "Fora do prazo").length;
+  const deliveryTimingMissing = delivered.filter((order) => order.deliveryTiming === "Não informado").length;
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden border-cyan-500/20 bg-[linear-gradient(135deg,var(--surface),rgba(6,182,212,.08))] p-6">
@@ -1100,14 +1134,26 @@ function DeliveredView({ data }: { data: DashboardData }) {
               Pedidos concluídos
             </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Registros vindos exclusivamente da aba ENTREGUES.
+              Registros vindos exclusivamente da aba ENTREGUES. A classificação de prazo é lida do resultado salvo pelo Excel.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
               <p className="text-[10px] text-[var(--muted)]">QUANTIDADE</p>
               <p className="mt-1 text-xl font-semibold text-[var(--text)]">
                 {number.format(delivered.length)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[.055] p-4">
+              <p className="text-[10px] text-[var(--muted)]">DENTRO DO PRAZO</p>
+              <p className="mt-1 text-xl font-semibold text-[var(--success)]">
+                {number.format(deliveredOnTime)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-red-500/20 bg-red-500/[.055] p-4">
+              <p className="text-[10px] text-[var(--muted)]">FORA DO PRAZO</p>
+              <p className="mt-1 text-xl font-semibold text-[var(--danger)]">
+                {number.format(deliveredLate)}
               </p>
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -1120,8 +1166,14 @@ function DeliveredView({ data }: { data: DashboardData }) {
             </div>
           </div>
         </div>
+        {deliveryTimingMissing > 0 && (
+          <div className="mt-5 flex items-start gap-2 border-t border-[var(--border)] pt-4 text-[11px] text-[var(--muted)]">
+            <Info size={14} className="mt-px shrink-0 text-[var(--warning)]" />
+            {number.format(deliveryTimingMissing)} pedido(s) entregue(s) sem classificação de prazo informada pela planilha. Esses registros não foram classificados automaticamente.
+          </div>
+        )}
       </Card>
-      <OrdersTable orders={delivered} title="Pedidos entregues" />
+      <OrdersTable orders={delivered} title="Pedidos entregues" showDeliveryTiming />
     </div>
   );
 }
