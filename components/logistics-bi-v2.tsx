@@ -777,7 +777,7 @@ function DashboardView({
   );
 }
 
-function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
+function OrderModal({ order, onClose, hideStatus = false }: { order: Order; onClose: () => void; hideStatus?: boolean }) {
   const fields = [
     ["Pedido", order.order],
     ["Cliente", order.client],
@@ -837,14 +837,15 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
           ))}
         </div>
         <div className="flex items-center gap-3 border-t border-[var(--border)] p-5">
-          <span
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-semibold",
-              statusClasses[order.status],
-            )}
-          >
-            {order.status}
-          </span>
+          {hideStatus ? (
+            <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", deliveryTimingClasses[order.deliveryTiming])}>
+              {deliveryTimingLabel[order.deliveryTiming]}
+            </span>
+          ) : (
+            <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", statusClasses[order.status])}>
+              {order.status}
+            </span>
+          )}
           <p className="text-xs text-[var(--muted)]">
             Registro confirmado no PostgreSQL.
           </p>
@@ -881,7 +882,7 @@ function OrdersTable({
             `${order.order} ${order.client} ${order.supplier} ${order.invoice} ${order.carrier} ${deliveryTimingLabel[order.deliveryTiming]}`
               .toLowerCase()
               .includes(query.toLowerCase()) &&
-            (status === "Todos" || order.status === status),
+            (showDeliveryTiming || status === "Todos" || order.status === status),
         )
         .sort((a, b) =>
           sort === "valor"
@@ -899,12 +900,12 @@ function OrdersTable({
   const exportCsv = () => {
     const clean = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
     const csv = [
-      showDeliveryTiming
-        ? "Pedido;Cliente;Fornecedor;NF;Transportadora;Valor;Vencimento;Data da entrega;Status;Prazo da entrega"
+        showDeliveryTiming
+        ? "Pedido;Cliente;Fornecedor;NF;Transportadora;Valor;Vencimento;Data da entrega;Prazo da entrega"
         : "Pedido;Cliente;Fornecedor;NF;Transportadora;Valor;Status",
       ...filtered.map((o) =>
         (showDeliveryTiming
-          ? [o.order, o.client, o.supplier, o.invoice, o.carrier, o.value, o.dueAt, o.deliveredAt, o.status, deliveryTimingLabel[o.deliveryTiming]]
+          ? [o.order, o.client, o.supplier, o.invoice, o.carrier, o.value, o.dueAt, o.deliveredAt, deliveryTimingLabel[o.deliveryTiming]]
           : [o.order, o.client, o.supplier, o.invoice, o.carrier, o.value, o.status])
           .map(clean)
           .join(";"),
@@ -952,26 +953,22 @@ function OrdersTable({
                     className="w-64 pl-9"
                   />
                 </div>
-                <select
-                  aria-label="Filtrar status"
-                  value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value);
-                    setPage(1);
-                  }}
-                  className="control"
-                >
-                  <option>Todos</option>
-                  {[
-                    "No prazo",
-                    "Vencendo",
-                    "Vencido",
-                    "Entregue",
-                    "Outros",
-                  ].map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
+                {!showDeliveryTiming && (
+                  <select
+                    aria-label="Filtrar status"
+                    value={status}
+                    onChange={(e) => {
+                      setStatus(e.target.value);
+                      setPage(1);
+                    }}
+                    className="control"
+                  >
+                    <option>Todos</option>
+                    {["No prazo", "Vencendo", "Vencido", "Entregue", "Outros"].map((item) => (
+                      <option key={item}>{item}</option>
+                    ))}
+                  </select>
+                )}
                 <select
                   aria-label="Ordenar pedidos"
                   value={sort}
@@ -1009,7 +1006,7 @@ function OrdersTable({
                 <th className="px-3 py-3">NF</th>
                 <th className="px-3 py-3">Valor</th>
                 <th className="px-3 py-3">{showDeliveryTiming ? "Vencimento / entrega" : "Previsão / entrega"}</th>
-                <th className="px-3 py-3">Status</th>
+                {!showDeliveryTiming && <th className="px-3 py-3">Status</th>}
                 {showDeliveryTiming && <th className="px-3 py-3">Prazo da entrega</th>}
                 <th className="px-5 py-3">Detalhes</th>
               </tr>
@@ -1043,16 +1040,13 @@ function OrdersTable({
                       </div>
                     ) : order.status === "Entregue" ? order.deliveredAt : order.dueAt}
                   </td>
-                  <td className="px-3">
-                    <span
-                      className={cn(
-                        "rounded-full border px-2.5 py-1 text-[10px] font-semibold",
-                        statusClasses[order.status],
-                      )}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
+                  {!showDeliveryTiming && (
+                    <td className="px-3">
+                      <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold", statusClasses[order.status])}>
+                        {order.status}
+                      </span>
+                    </td>
+                  )}
                   {showDeliveryTiming && (
                     <td className="px-3">
                       <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold", deliveryTimingClasses[order.deliveryTiming])}>
@@ -1110,7 +1104,7 @@ function OrdersTable({
       </Card>
       <AnimatePresence>
         {selected && (
-          <OrderModal order={selected} onClose={() => setSelected(null)} />
+            <OrderModal order={selected} hideStatus={showDeliveryTiming} onClose={() => setSelected(null)} />
         )}
       </AnimatePresence>
     </>
