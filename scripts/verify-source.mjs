@@ -31,12 +31,12 @@ const parseValue = (input) => {
 const statusOf = (row) => {
   const source = normalize(row.sourceSheet), deadline = normalize(row.deadlineStatus), delivery = normalize(row.deliveryStatus);
   if (source.includes("entreg")) return "Entregue";
-  if (delivery.includes("atencao") || delivery.includes("vencendo")) return "Vencendo";
-  if (deadline.includes("foradoprazo")) return "Vencido";
-  if (delivery.includes("foradoprazo")) return "Vencido";
-  if (deadline.includes("dentrodoprazo") || delivery === "ok") return "No prazo";
+  if (deadline.includes("foradoprazo") || deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
+  if (deadline.includes("dentrodoprazo")) return "No prazo";
   if (deadline.includes("vencendo")) return "Vencendo";
-  if (deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
+  if (delivery.includes("foradoprazo")) return "Vencido";
+  if (delivery.includes("atencao") || delivery.includes("vencendo")) return "Vencendo";
+  if (delivery === "ok") return "No prazo";
   return "Outros";
 };
 const countStatuses = (rows) => rows.reduce((acc, row) => { const status = statusOf(row); acc[status] = (acc[status] ?? 0) + 1; return acc; }, {});

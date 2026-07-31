@@ -19,13 +19,13 @@ export function classifyOrderStatus(row: StatusSource): OrderStatus {
 
   if (source.includes("entreg")) return "Entregue";
 
-  // No Excel, "Atenção!" identifica o período entre o início do alerta
-  // e a data de vencimento. Essa é a fonte oficial para o status "Vencendo".
-  if (delivery.includes("atencao") || delivery.includes("vencendo")) return "Vencendo";
-
-  if (deadline.includes("foradoprazo") || delivery.includes("foradoprazo")) return "Vencido";
-  if (deadline.includes("dentrodoprazo") || delivery === "ok") return "No prazo";
+  // O status de vencimento é a fonte oficial. O status de entrega é usado
+  // somente como fallback quando o campo de vencimento não resolve o caso.
+  if (deadline.includes("foradoprazo") || deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
+  if (deadline.includes("dentrodoprazo")) return "No prazo";
   if (deadline.includes("vencendo")) return "Vencendo";
-  if (deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
+  if (delivery.includes("foradoprazo")) return "Vencido";
+  if (delivery.includes("atencao") || delivery.includes("vencendo")) return "Vencendo";
+  if (delivery === "ok") return "No prazo";
   return "Outros";
 }
