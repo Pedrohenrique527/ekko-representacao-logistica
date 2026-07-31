@@ -32,10 +32,10 @@ const statusOf = (row) => {
   const source = normalize(row.sourceSheet), deadline = normalize(row.deadlineStatus), delivery = normalize(row.deliveryStatus);
   if (source.includes("entreg")) return "Entregue";
   if (deadline.includes("foradoprazo") || deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
-  if (deadline.includes("dentrodoprazo")) return "No prazo";
-  if (deadline.includes("vencendo")) return "Vencendo";
-  if (delivery.includes("foradoprazo")) return "Vencido";
   if (delivery.includes("atencao") || delivery.includes("vencendo")) return "Vencendo";
+  if (deadline.includes("vencendo")) return "Vencendo";
+  if (deadline.includes("dentrodoprazo")) return "No prazo";
+  if (delivery.includes("foradoprazo")) return "Vencido";
   if (delivery === "ok") return "No prazo";
   return "Outros";
 };

@@ -20,12 +20,12 @@ export function classifyOrderStatus(row: StatusSource): OrderStatus {
   if (source.includes("entreg")) return "Entregue";
 
   // O status de vencimento é a fonte oficial. O status de entrega é usado
-  // somente como fallback quando o campo de vencimento não resolve o caso.
+  // como alerta intermediário, mas nunca pode rebaixar um vencimento oficial.
   if (deadline.includes("foradoprazo") || deadline.includes("vencido") || deadline.includes("atras")) return "Vencido";
-  if (deadline.includes("dentrodoprazo")) return "No prazo";
-  if (deadline.includes("vencendo")) return "Vencendo";
-  if (delivery.includes("foradoprazo")) return "Vencido";
   if (delivery.includes("atencao") || delivery.includes("vencendo")) return "Vencendo";
+  if (deadline.includes("vencendo")) return "Vencendo";
+  if (deadline.includes("dentrodoprazo")) return "No prazo";
+  if (delivery.includes("foradoprazo")) return "Vencido";
   if (delivery === "ok") return "No prazo";
   return "Outros";
 }
