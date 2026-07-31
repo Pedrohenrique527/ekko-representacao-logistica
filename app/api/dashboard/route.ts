@@ -14,10 +14,12 @@ type DbOrder = {
 const normalize = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const asDate = (value: string | null) => value ? new Date(value) : null;
 const brDate = (value: string | null) => value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value)) : "—";
-const deliveryTiming = (row: Pick<DbOrder, "deadlineStatus" | "deliveryStatus">): DeliveryTiming => {
-  const officialStatus = `${normalize(row.deadlineStatus)} ${normalize(row.deliveryStatus)}`.replace(/[^a-z0-9]/g, "");
+const deliveryTiming = (row: Pick<DbOrder, "deliveryStatus">): DeliveryTiming => {
+  // Para pedidos da aba ENTREGUES, a única fonte oficial é a coluna
+  // "Status de entrega !!" (coluna N na planilha atual).
+  const officialStatus = normalize(row.deliveryStatus).replace(/[^a-z0-9]/g, "");
   if (officialStatus.includes("foradoprazo") || officialStatus.includes("atras") || officialStatus.includes("vencid") || officialStatus.includes("expirad")) return "Fora do prazo";
-  if (officialStatus.includes("dentrodoprazo") || officialStatus.includes("noprazo") || normalize(row.deliveryStatus).trim() === "ok") return "Dentro do prazo";
+  if (officialStatus.includes("dentrodoprazo") || officialStatus.includes("noprazo") || officialStatus === "ok") return "Dentro do prazo";
   return "Não informado";
 };
 
@@ -43,7 +45,7 @@ export async function GET() {
     rows.forEach((row, i) => {
       const supplier = supplierMap.get(row.supplier) ?? { value: 0, orders: 0, late: 0, delivered: 0, deliveredOnTime: 0 };
       supplier.value += Number(row.value); supplier.orders++; if (statuses[i] === "Vencido") supplier.late++;
-      if (statuses[i] === "Entregue") { supplier.delivered++; if (normalize(row.deadlineStatus).includes("dentro do prazo")) supplier.deliveredOnTime++; }
+      if (statuses[i] === "Entregue") { supplier.delivered++; if (deliveryTiming(row) === "Dentro do prazo") supplier.deliveredOnTime++; }
       supplierMap.set(row.supplier, supplier);
       const date = asDate(row.sentAt ?? row.expectedAt ?? row.deliveredAt);
       if (date && !Number.isNaN(date.getTime())) { const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`; const month = monthMap.get(key) ?? { sort: date.getUTCFullYear() * 12 + date.getUTCMonth(), pedidos: 0, valor: 0 }; month.pedidos++; month.valor += Number(row.value); monthMap.set(key, month); }

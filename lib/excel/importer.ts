@@ -69,6 +69,9 @@ const identifyField = (value: unknown): Field | undefined => {
     .find(([, options]) => options.includes(normalized))?.[0];
 };
 
+const isOfficialDeliveredTimingHeader = (value: unknown) =>
+  normalizeHeader(value) === "statusdeentrega" && /!{2,}/.test(String(value ?? ""));
+
 const parseValue = (input: unknown) => {
   if (typeof input === "number") return Number.isFinite(input) ? input : Number.NaN;
   const raw = String(input ?? "").replace(/[^\d,.-]/g, "");
@@ -107,7 +110,17 @@ const readSheet = async (xlsx: typeof import("xlsx"), workbook: WorkBook, sheetN
   const map = new Map<Field, number>();
   rows[headerRow]?.forEach((header, index) => {
     const field = identifyField(header);
-    if (field && !map.has(field)) map.set(field, index);
+    if (!field) return;
+
+    // Na aba ENTREGUES existem duas colunas chamadas "Status de entrega".
+    // A coluna marcada com "!!" é o resultado final e oficial da planilha
+    // (atualmente a coluna N). Ela deve prevalecer mesmo se mudar de posição.
+    const isOfficialDeliveredTiming =
+      normalizeHeader(sheetName) === "entregues" &&
+      field === "deliveryStatus" &&
+      isOfficialDeliveredTimingHeader(header);
+
+    if (!map.has(field) || isOfficialDeliveredTiming) map.set(field, index);
   });
 
   const orders: ImportedOrder[] = [];

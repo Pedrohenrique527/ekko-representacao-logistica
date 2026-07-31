@@ -1176,7 +1176,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
               Pedidos concluídos
             </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Registros vindos exclusivamente da aba ENTREGUES. A classificação de prazo é lida do resultado salvo pelo Excel.
+              Registros vindos exclusivamente da aba ENTREGUES. A classificação de prazo é lida da coluna “Status de entrega !!” da planilha.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -1211,14 +1211,14 @@ function DeliveredView({ data }: { data: DashboardData }) {
         {deliveryTimingMissing > 0 && (
           <div className="mt-5 flex items-start gap-2 border-t border-[var(--border)] pt-4 text-[11px] text-[var(--muted)]">
             <Info size={14} className="mt-px shrink-0 text-[var(--warning)]" />
-            {number.format(deliveryTimingMissing)} pedido(s) entregue(s) sem classificação de prazo informada pela planilha. Esses registros não foram classificados automaticamente.
+            {number.format(deliveryTimingMissing)} pedido(s) entregue(s) sem resultado de prazo na coluna “Status de entrega !!”. Esses registros não foram classificados automaticamente.
           </div>
         )}
       </Card>
       <Card className="overflow-hidden">
         <SectionHeader
           title="Comparativo de entregas por fornecedor"
-          subtitle="Pedidos entregues dentro e fora do prazo, conforme a classificação preservada da planilha"
+          subtitle="Comparação baseada exclusivamente na coluna “Status de entrega !!” da aba ENTREGUES"
           action={
             <div className="flex flex-wrap gap-2">
               <select
