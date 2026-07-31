@@ -1,5 +1,5 @@
 export type OrderStatus = "No prazo" | "Vencendo" | "Vencido" | "Entregue" | "Outros";
-export type DeliveryTiming = "Dentro do prazo" | "Fora do prazo" | "Não informado";
+export type DeliveryTiming = "Dentro do prazo" | "Fora do prazo" | "Cancelado" | "Não informado";
 
 export type Order = {
   id: string;

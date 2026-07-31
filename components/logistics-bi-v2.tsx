@@ -207,12 +207,14 @@ const statusClasses: Record<OrderStatus, string> = {
 const deliveryTimingClasses: Record<DeliveryTiming, string> = {
   "Dentro do prazo": "border-emerald-500/25 bg-emerald-500/10 text-[var(--success)]",
   "Fora do prazo": "border-red-500/25 bg-red-500/10 text-[var(--danger)]",
+  Cancelado: "border-orange-500/25 bg-orange-500/10 text-orange-500",
   "Não informado": "border-slate-500/25 bg-slate-500/10 text-[var(--muted)]",
 };
 const deliveryTimingLabel: Record<DeliveryTiming, string> = {
   "Dentro do prazo": "Entregue dentro do prazo",
   "Fora do prazo": "Entregue fora do prazo",
-  "Não informado": "Sem prazo aplicável ou não informado",
+  Cancelado: "Cancelado",
+  "Não informado": "Reimporte a planilha para atualizar",
 };
 const monthNames = [
   "Jan",
@@ -1118,14 +1120,15 @@ function DeliveredView({ data }: { data: DashboardData }) {
   );
   const deliveredOnTime = delivered.filter((order) => order.deliveryTiming === "Dentro do prazo").length;
   const deliveredLate = delivered.filter((order) => order.deliveryTiming === "Fora do prazo").length;
+  const deliveredCancelled = delivered.filter((order) => order.deliveryTiming === "Cancelado").length;
   const deliveryTimingMissing = delivered.filter((order) => order.deliveryTiming === "Não informado").length;
   const [supplierFilter, setSupplierFilter] = useState("Todos");
-  const [supplierSort, setSupplierSort] = useState<"total" | "onTime" | "late" | "name">("total");
+  const [supplierSort, setSupplierSort] = useState<"total" | "onTime" | "late" | "cancelled" | "name">("total");
 
   const supplierComparison = useMemo(() => {
     const grouped = new Map<
       string,
-      { supplier: string; total: number; onTime: number; late: number; missing: number }
+      { supplier: string; total: number; onTime: number; late: number; cancelled: number }
     >();
 
     for (const order of delivered) {
@@ -1135,12 +1138,12 @@ function DeliveredView({ data }: { data: DashboardData }) {
         total: 0,
         onTime: 0,
         late: 0,
-        missing: 0,
+        cancelled: 0,
       };
       current.total += 1;
       if (order.deliveryTiming === "Dentro do prazo") current.onTime += 1;
       else if (order.deliveryTiming === "Fora do prazo") current.late += 1;
-      else current.missing += 1;
+      else if (order.deliveryTiming === "Cancelado") current.cancelled += 1;
       grouped.set(supplier, current);
     }
 
@@ -1155,6 +1158,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
       if (supplierSort === "name") return a.supplier.localeCompare(b.supplier, "pt-BR");
       if (supplierSort === "onTime") return b.onTime - a.onTime || b.total - a.total;
       if (supplierSort === "late") return b.late - a.late || b.total - a.total;
+      if (supplierSort === "cancelled") return b.cancelled - a.cancelled || b.total - a.total;
       return b.total - a.total || a.supplier.localeCompare(b.supplier, "pt-BR");
     });
   }, [supplierComparison, supplierFilter, supplierSort]);
@@ -1179,7 +1183,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
               Registros vindos exclusivamente da aba ENTREGUES. A classificação de prazo é lida da coluna “Status de entrega !!” da planilha.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
               <p className="text-[10px] text-[var(--muted)]">QUANTIDADE</p>
               <p className="mt-1 text-xl font-semibold text-[var(--text)]">
@@ -1198,6 +1202,12 @@ function DeliveredView({ data }: { data: DashboardData }) {
                 {number.format(deliveredLate)}
               </p>
             </div>
+            <div className="rounded-xl border border-orange-500/20 bg-orange-500/[.055] p-4">
+              <p className="text-[10px] text-[var(--muted)]">CANCELADOS</p>
+              <p className="mt-1 text-xl font-semibold text-orange-500">
+                {number.format(deliveredCancelled)}
+              </p>
+            </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
               <p className="text-[10px] text-[var(--muted)]">VALOR ENTREGUE</p>
               <p className="mt-1 text-xl font-semibold text-[var(--text)]">
@@ -1211,7 +1221,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
         {deliveryTimingMissing > 0 && (
           <div className="mt-5 flex items-start gap-2 border-t border-[var(--border)] pt-4 text-[11px] text-[var(--muted)]">
             <Info size={14} className="mt-px shrink-0 text-[var(--warning)]" />
-            {number.format(deliveryTimingMissing)} pedido(s) com resultado diferente de “OK!” ou “Fora do Prazo” na coluna oficial (por exemplo, “CANCELADO”). Esses registros não foram forçados para nenhum dos dois grupos.
+            Esta importação ainda não contém a leitura corrigida da coluna N. Importe a planilha novamente para atualizar os resultados.
           </div>
         )}
       </Card>
@@ -1238,13 +1248,14 @@ function DeliveredView({ data }: { data: DashboardData }) {
                 aria-label="Ordenar fornecedores"
                 value={supplierSort}
                 onChange={(event) =>
-                  setSupplierSort(event.target.value as "total" | "onTime" | "late" | "name")
+                  setSupplierSort(event.target.value as "total" | "onTime" | "late" | "cancelled" | "name")
                 }
                 className="h-9 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs text-[var(--text)] outline-none transition focus:border-[var(--primary)]"
               >
                 <option value="total">Mais pedidos entregues</option>
                 <option value="onTime">Mais entregues no prazo</option>
                 <option value="late">Mais entregues atrasados</option>
+                <option value="cancelled">Mais pedidos cancelados</option>
                 <option value="name">Nome do fornecedor</option>
               </select>
             </div>
@@ -1257,11 +1268,9 @@ function DeliveredView({ data }: { data: DashboardData }) {
           <span className="inline-flex items-center gap-2">
             <span className="size-2 rounded-full bg-red-500" /> Fora do prazo
           </span>
-          {deliveryTimingMissing > 0 && (
-            <span className="inline-flex items-center gap-2">
-              <span className="size-2 rounded-full bg-slate-500" /> Sem prazo aplicável (ex.: cancelado)
-            </span>
-          )}
+          <span className="inline-flex items-center gap-2">
+            <span className="size-2 rounded-full bg-orange-500" /> Cancelados
+          </span>
           <span className="ml-auto flex flex-wrap items-center gap-4">
             <span className="font-semibold text-[var(--text)]">
               Total de pedidos: {number.format(filteredDeliveredTotal)}
@@ -1308,7 +1317,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
                         ? "Dentro do prazo"
                         : name === "Fora do prazo"
                           ? "Fora do prazo"
-                          : "Sem prazo aplicável (ex.: cancelado)",
+                          : "Cancelados",
                     ]}
                     contentStyle={{
                       background: "var(--surface)",
@@ -1334,16 +1343,14 @@ function DeliveredView({ data }: { data: DashboardData }) {
                     radius={[0, 0, 0, 0]}
                     maxBarSize={24}
                   />
-                  {deliveryTimingMissing > 0 && (
-                    <Bar
-                      dataKey="missing"
-                      name="Sem prazo aplicável (ex.: cancelado)"
-                      stackId="delivery"
-                      fill="#64748b"
-                      radius={[0, 4, 4, 0]}
-                      maxBarSize={24}
-                    />
-                  )}
+                  <Bar
+                    dataKey="cancelled"
+                    name="Cancelados"
+                    stackId="delivery"
+                    fill="#f97316"
+                    radius={[0, 4, 4, 0]}
+                    maxBarSize={24}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
