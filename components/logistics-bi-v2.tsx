@@ -1159,6 +1159,11 @@ function DeliveredView({ data }: { data: DashboardData }) {
     });
   }, [supplierComparison, supplierFilter, supplierSort]);
 
+  const filteredDeliveredTotal = filteredSupplierComparison.reduce(
+    (total, row) => total + row.total,
+    0,
+  );
+
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden border-cyan-500/20 bg-[linear-gradient(135deg,var(--surface),rgba(6,182,212,.08))] p-6">
@@ -1254,10 +1259,15 @@ function DeliveredView({ data }: { data: DashboardData }) {
           </span>
           {deliveryTimingMissing > 0 && (
             <span className="inline-flex items-center gap-2">
-              <span className="size-2 rounded-full bg-slate-500" /> Sem classificação
+              <span className="size-2 rounded-full bg-slate-500" /> Prazo não informado na planilha
             </span>
           )}
-          <span className="ml-auto">{number.format(filteredSupplierComparison.length)} fornecedor(es)</span>
+          <span className="ml-auto flex flex-wrap items-center gap-4">
+            <span className="font-semibold text-[var(--text)]">
+              Total de pedidos: {number.format(filteredDeliveredTotal)}
+            </span>
+            <span>{number.format(filteredSupplierComparison.length)} fornecedor(es)</span>
+          </span>
         </div>
         <div className="max-h-[680px] overflow-x-auto overflow-y-auto px-2 pb-5 pt-2">
           {filteredSupplierComparison.length > 0 ? (
@@ -1294,11 +1304,11 @@ function DeliveredView({ data }: { data: DashboardData }) {
                     cursor={{ fill: "rgba(56,184,210,.06)" }}
                     formatter={(value, name) => [
                       number.format(Number(value)),
-                      name === "onTime"
+                      name === "Dentro do prazo"
                         ? "Dentro do prazo"
-                        : name === "late"
+                        : name === "Fora do prazo"
                           ? "Fora do prazo"
-                          : "Sem classificação",
+                          : "Prazo não informado na planilha",
                     ]}
                     contentStyle={{
                       background: "var(--surface)",
@@ -1327,7 +1337,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
                   {deliveryTimingMissing > 0 && (
                     <Bar
                       dataKey="missing"
-                      name="Sem classificação"
+                      name="Prazo não informado na planilha"
                       stackId="delivery"
                       fill="#64748b"
                       radius={[0, 4, 4, 0]}
