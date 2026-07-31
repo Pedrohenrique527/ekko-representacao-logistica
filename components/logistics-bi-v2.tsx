@@ -212,7 +212,7 @@ const deliveryTimingClasses: Record<DeliveryTiming, string> = {
 const deliveryTimingLabel: Record<DeliveryTiming, string> = {
   "Dentro do prazo": "Entregue dentro do prazo",
   "Fora do prazo": "Entregue fora do prazo",
-  "Não informado": "Não informado na planilha",
+  "Não informado": "Sem prazo aplicável ou não informado",
 };
 const monthNames = [
   "Jan",
@@ -1211,7 +1211,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
         {deliveryTimingMissing > 0 && (
           <div className="mt-5 flex items-start gap-2 border-t border-[var(--border)] pt-4 text-[11px] text-[var(--muted)]">
             <Info size={14} className="mt-px shrink-0 text-[var(--warning)]" />
-            {number.format(deliveryTimingMissing)} pedido(s) entregue(s) sem resultado de prazo na coluna “Status de entrega !!”. Esses registros não foram classificados automaticamente.
+            {number.format(deliveryTimingMissing)} pedido(s) com resultado diferente de “OK!” ou “Fora do Prazo” na coluna oficial (por exemplo, “CANCELADO”). Esses registros não foram forçados para nenhum dos dois grupos.
           </div>
         )}
       </Card>
@@ -1259,7 +1259,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
           </span>
           {deliveryTimingMissing > 0 && (
             <span className="inline-flex items-center gap-2">
-              <span className="size-2 rounded-full bg-slate-500" /> Prazo não informado na planilha
+              <span className="size-2 rounded-full bg-slate-500" /> Sem prazo aplicável (ex.: cancelado)
             </span>
           )}
           <span className="ml-auto flex flex-wrap items-center gap-4">
@@ -1308,7 +1308,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
                         ? "Dentro do prazo"
                         : name === "Fora do prazo"
                           ? "Fora do prazo"
-                          : "Prazo não informado na planilha",
+                          : "Sem prazo aplicável (ex.: cancelado)",
                     ]}
                     contentStyle={{
                       background: "var(--surface)",
@@ -1337,7 +1337,7 @@ function DeliveredView({ data }: { data: DashboardData }) {
                   {deliveryTimingMissing > 0 && (
                     <Bar
                       dataKey="missing"
-                      name="Prazo não informado na planilha"
+                      name="Sem prazo aplicável (ex.: cancelado)"
                       stackId="delivery"
                       fill="#64748b"
                       radius={[0, 4, 4, 0]}
