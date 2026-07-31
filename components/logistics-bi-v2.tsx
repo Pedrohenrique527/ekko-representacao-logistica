@@ -1112,10 +1112,53 @@ function OrdersTable({
 }
 
 function DeliveredView({ data }: { data: DashboardData }) {
-  const delivered = data.orders.filter((order) => order.status === "Entregue");
+  const delivered = useMemo(
+    () => data.orders.filter((order) => order.status === "Entregue"),
+    [data.orders],
+  );
   const deliveredOnTime = delivered.filter((order) => order.deliveryTiming === "Dentro do prazo").length;
   const deliveredLate = delivered.filter((order) => order.deliveryTiming === "Fora do prazo").length;
   const deliveryTimingMissing = delivered.filter((order) => order.deliveryTiming === "Não informado").length;
+  const [supplierFilter, setSupplierFilter] = useState("Todos");
+  const [supplierSort, setSupplierSort] = useState<"total" | "onTime" | "late" | "name">("total");
+
+  const supplierComparison = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { supplier: string; total: number; onTime: number; late: number; missing: number }
+    >();
+
+    for (const order of delivered) {
+      const supplier = order.supplier?.trim() || "Sem fornecedor informado";
+      const current = grouped.get(supplier) ?? {
+        supplier,
+        total: 0,
+        onTime: 0,
+        late: 0,
+        missing: 0,
+      };
+      current.total += 1;
+      if (order.deliveryTiming === "Dentro do prazo") current.onTime += 1;
+      else if (order.deliveryTiming === "Fora do prazo") current.late += 1;
+      else current.missing += 1;
+      grouped.set(supplier, current);
+    }
+
+    return Array.from(grouped.values());
+  }, [delivered]);
+
+  const filteredSupplierComparison = useMemo(() => {
+    const rows = supplierComparison.filter(
+      (row) => supplierFilter === "Todos" || row.supplier === supplierFilter,
+    );
+    return [...rows].sort((a, b) => {
+      if (supplierSort === "name") return a.supplier.localeCompare(b.supplier, "pt-BR");
+      if (supplierSort === "onTime") return b.onTime - a.onTime || b.total - a.total;
+      if (supplierSort === "late") return b.late - a.late || b.total - a.total;
+      return b.total - a.total || a.supplier.localeCompare(b.supplier, "pt-BR");
+    });
+  }, [supplierComparison, supplierFilter, supplierSort]);
+
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden border-cyan-500/20 bg-[linear-gradient(135deg,var(--surface),rgba(6,182,212,.08))] p-6">
@@ -1166,6 +1209,140 @@ function DeliveredView({ data }: { data: DashboardData }) {
             {number.format(deliveryTimingMissing)} pedido(s) entregue(s) sem classificação de prazo informada pela planilha. Esses registros não foram classificados automaticamente.
           </div>
         )}
+      </Card>
+      <Card className="overflow-hidden">
+        <SectionHeader
+          title="Comparativo de entregas por fornecedor"
+          subtitle="Pedidos entregues dentro e fora do prazo, conforme a classificação preservada da planilha"
+          action={
+            <div className="flex flex-wrap gap-2">
+              <select
+                aria-label="Filtrar fornecedor"
+                value={supplierFilter}
+                onChange={(event) => setSupplierFilter(event.target.value)}
+                className="h-9 min-w-[190px] rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs text-[var(--text)] outline-none transition focus:border-[var(--primary)]"
+              >
+                <option value="Todos">Todos os fornecedores</option>
+                {supplierComparison.map((row) => (
+                  <option key={row.supplier} value={row.supplier}>
+                    {row.supplier}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="Ordenar fornecedores"
+                value={supplierSort}
+                onChange={(event) =>
+                  setSupplierSort(event.target.value as "total" | "onTime" | "late" | "name")
+                }
+                className="h-9 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs text-[var(--text)] outline-none transition focus:border-[var(--primary)]"
+              >
+                <option value="total">Mais pedidos entregues</option>
+                <option value="onTime">Mais entregues no prazo</option>
+                <option value="late">Mais entregues atrasados</option>
+                <option value="name">Nome do fornecedor</option>
+              </select>
+            </div>
+          }
+        />
+        <div className="flex flex-wrap items-center gap-4 px-5 pt-4 text-[11px] text-[var(--muted)]">
+          <span className="inline-flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-500" /> Dentro do prazo
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="size-2 rounded-full bg-red-500" /> Fora do prazo
+          </span>
+          {deliveryTimingMissing > 0 && (
+            <span className="inline-flex items-center gap-2">
+              <span className="size-2 rounded-full bg-slate-500" /> Sem classificação
+            </span>
+          )}
+          <span className="ml-auto">{number.format(filteredSupplierComparison.length)} fornecedor(es)</span>
+        </div>
+        <div className="max-h-[680px] overflow-x-auto overflow-y-auto px-2 pb-5 pt-2">
+          {filteredSupplierComparison.length > 0 ? (
+            <div
+              className="min-w-[760px]"
+              style={{ height: Math.max(360, filteredSupplierComparison.length * 38 + 56) }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={filteredSupplierComparison}
+                  layout="vertical"
+                  margin={{ top: 8, right: 24, bottom: 8, left: 8 }}
+                  barCategoryGap="22%"
+                >
+                  <CartesianGrid stroke="var(--chart-grid)" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    stroke="var(--chart-axis)"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="supplier"
+                    width={220}
+                    stroke="var(--chart-axis)"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={10}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(56,184,210,.06)" }}
+                    formatter={(value, name) => [
+                      number.format(Number(value)),
+                      name === "onTime"
+                        ? "Dentro do prazo"
+                        : name === "late"
+                          ? "Fora do prazo"
+                          : "Sem classificação",
+                    ]}
+                    contentStyle={{
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 10,
+                      color: "var(--text)",
+                      boxShadow: "var(--shadow)",
+                    }}
+                  />
+                  <Bar
+                    dataKey="onTime"
+                    name="Dentro do prazo"
+                    stackId="delivery"
+                    fill="#22c55e"
+                    radius={[4, 0, 0, 4]}
+                    maxBarSize={24}
+                  />
+                  <Bar
+                    dataKey="late"
+                    name="Fora do prazo"
+                    stackId="delivery"
+                    fill="#ef4444"
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={24}
+                  />
+                  {deliveryTimingMissing > 0 && (
+                    <Bar
+                      dataKey="missing"
+                      name="Sem classificação"
+                      stackId="delivery"
+                      fill="#64748b"
+                      radius={[0, 4, 4, 0]}
+                      maxBarSize={24}
+                    />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="grid h-48 place-items-center text-sm text-[var(--muted)]">
+              Nenhum fornecedor encontrado para o filtro selecionado.
+            </div>
+          )}
+        </div>
       </Card>
       <OrdersTable orders={delivered} title="Pedidos entregues" showDeliveryTiming />
     </div>
