@@ -1311,20 +1311,48 @@ function DeliveredView({ data }: { data: DashboardData }) {
                   />
                   <Tooltip
                     cursor={{ fill: "rgba(56,184,210,.06)" }}
-                    formatter={(value, name) => [
-                      number.format(Number(value)),
-                      name === "Dentro do prazo"
-                        ? "Dentro do prazo"
-                        : name === "Fora do prazo"
-                          ? "Fora do prazo"
-                          : "Cancelados",
-                    ]}
-                    contentStyle={{
-                      background: "var(--surface)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 10,
-                      color: "var(--text)",
-                      boxShadow: "var(--shadow)",
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const row = payload[0]?.payload as
+                        | { total: number; onTime: number; late: number; cancelled: number }
+                        | undefined;
+                      if (!row) return null;
+                      const percentage = (value: number) =>
+                        row.total
+                          ? `${((value / row.total) * 100).toLocaleString("pt-BR", {
+                              minimumFractionDigits: 1,
+                              maximumFractionDigits: 1,
+                            })}%`
+                          : "0,0%";
+                      const items = [
+                        { label: "Dentro do prazo", value: row.onTime, color: "#22c55e" },
+                        { label: "Fora do prazo", value: row.late, color: "#ef4444" },
+                        { label: "Cancelados", value: row.cancelled, color: "#f97316" },
+                      ];
+                      return (
+                        <div className="min-w-[285px] rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-4 text-[var(--text)] shadow-[var(--shadow)]">
+                          <p className="max-w-[360px] text-sm font-semibold leading-5">
+                            {String(label ?? "Fornecedor")}
+                          </p>
+                          <div className="mt-3 space-y-2.5">
+                            {items.map((item) => (
+                              <div key={item.label} className="flex items-center justify-between gap-6 text-xs">
+                                <span className="inline-flex items-center gap-2" style={{ color: item.color }}>
+                                  <span className="size-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                  {item.label}
+                                </span>
+                                <span className="font-semibold tabular-nums text-[var(--text)]">
+                                  {number.format(item.value)} · {percentage(item.value)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs">
+                            <span className="text-[var(--muted)]">Total de pedidos</span>
+                            <span className="font-semibold tabular-nums">{number.format(row.total)}</span>
+                          </div>
+                        </div>
+                      );
                     }}
                   />
                   <Bar
