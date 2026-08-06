@@ -19,7 +19,7 @@ export default async function LoginPage({
         : undefined;
   return (
     <LoginView
-      defaultEmail="planejamento@ekkorevestimentos.com.br"
+      defaultEmail=""
       notice={notice}
     />
   );
