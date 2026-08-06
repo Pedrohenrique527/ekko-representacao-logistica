@@ -78,6 +78,7 @@ import {
 import { parseExcelFile, type ImportResult } from "@/lib/excel/importer";
 import { AuthLoadingScreen, LogoutDialog } from "@/components/auth-experience";
 import { DeveloperSignature, EkkoBrand } from "@/components/brand";
+import type { AuthenticatedUser } from "@/lib/auth";
 
 type PageId =
   | "dashboard"
@@ -2244,7 +2245,7 @@ function AboutView() {
   );
 }
 
-export function LogisticsBIV2() {
+export function LogisticsBIV2({ user }: { user: AuthenticatedUser }) {
   const [page, setPage] = useState<PageId>("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -2584,11 +2585,11 @@ export function LogisticsBIV2() {
                 className="flex items-center gap-2 rounded-[9px] p-1 pr-1.5 transition hover:bg-[var(--surface-2)]"
               >
                 <div className="grid size-8 place-items-center rounded-full bg-[var(--primary)] text-[10px] font-bold text-white">
-                  ER
+                  {user.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="hidden text-left xl:block">
-                  <p className="text-[10px] font-medium text-[var(--text)]">Representação Ekko</p>
-                  <p className="text-[9px] text-[var(--muted)]">Administrador</p>
+                  <p className="max-w-36 truncate text-[10px] font-medium text-[var(--text)]">{user.name}</p>
+                  <p className="text-[9px] text-[var(--muted)]">{user.role === "ADMIN" ? "Administrador" : user.role === "MANAGER" ? "Gerente" : user.role === "VIEWER" ? "Visualizador" : "Usuário"}</p>
                 </div>
                 <ChevronDown size={13} className={cn("hidden text-[var(--muted)] transition sm:block", userMenuOpen && "rotate-180")} />
               </button>
@@ -2602,8 +2603,8 @@ export function LogisticsBIV2() {
                     className="absolute right-0 top-[calc(100%+10px)] w-64 overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl"
                   >
                     <div className="border-b border-[var(--border)] px-3 py-3">
-                      <p className="text-xs font-semibold text-[var(--text)]">Representação Ekko</p>
-                      <p className="mt-1 truncate text-[10px] text-[var(--muted)]">representacao@ekkorevestimentos.com.br</p>
+                      <p className="text-xs font-semibold text-[var(--text)]">{user.name}</p>
+                      <p className="mt-1 truncate text-[10px] text-[var(--muted)]">{user.email}</p>
                     </div>
                     <button
                       role="menuitem"

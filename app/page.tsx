@@ -13,5 +13,5 @@ export const metadata: Metadata = {
 export default async function Home() {
   const user = await getAuthenticatedUser();
   if (!user) redirect("/login");
-  return <LogisticsBIV2 />;
+  return <LogisticsBIV2 user={user} />;
 }

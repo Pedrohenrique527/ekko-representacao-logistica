@@ -7,6 +7,7 @@ O projeto utiliza Next.js, PostgreSQL Neon e autenticação própria com sessão
 - `DATABASE_URL`: conexão PostgreSQL do Neon.
 - `APP_LOGIN_EMAIL`: e-mail autorizado para o login.
 - `APP_LOGIN_PASSWORD_HASH`: hash PBKDF2 da senha; nunca grave a senha no GitHub.
+- `APP_USERS_JSON`: lista JSON de usuários com `email`, `name`, `role` e `passwordHash`. Quando preenchida, permite mais de um acesso e substitui as duas variáveis legadas.
 - `AUTH_SECRET`: segredo aleatório usado para assinar as sessões.
 
 ## Configuração

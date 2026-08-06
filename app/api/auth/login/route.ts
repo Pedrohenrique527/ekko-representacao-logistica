@@ -17,7 +17,8 @@ export async function POST(request: Request) {
     if (!process.env.APP_LOGIN_EMAIL || !process.env.APP_LOGIN_PASSWORD_HASH || !process.env.AUTH_SECRET) {
       return NextResponse.json({ message: "O acesso ainda não foi configurado no servidor." }, { status: 503 });
     }
-    if (!(await verifyCredentials(parsed.data.email, parsed.data.password))) {
+    const user = await verifyCredentials(parsed.data.email, parsed.data.password);
+    if (!user) {
       return NextResponse.json({ message: "E-mail ou senha incorretos." }, { status: 401 });
     }
     const session = await createSessionToken(parsed.data.email, parsed.data.remember);

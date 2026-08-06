@@ -3,11 +3,15 @@ import { cookies } from "next/headers";
 export const SESSION_COOKIE = "ekko_session";
 const encoder = new TextEncoder();
 
+export type UserRole = "ADMIN" | "USER" | "MANAGER" | "VIEWER";
+
 export type AuthenticatedUser = {
   email: string;
   name: string;
-  role: "ADMIN";
+  role: UserRole;
 };
+
+type ConfiguredUser = AuthenticatedUser & { passwordHash: string };
 
 type SessionPayload = {
   email: string;
@@ -25,8 +29,48 @@ function constantTimeEqual(left: Uint8Array, right: Uint8Array) {
   return difference === 0;
 }
 
-function configuredEmail() {
-  return String(process.env.APP_LOGIN_EMAIL ?? "").trim().toLowerCase();
+function normalizeUser(value: unknown): ConfiguredUser | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  const email = String(item.email ?? "").trim().toLowerCase();
+  const passwordHash = String(item.passwordHash ?? "").trim();
+  const role = String(item.role ?? "USER").trim().toUpperCase() as UserRole;
+  if (!email || !passwordHash || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  if (!["ADMIN", "USER", "MANAGER", "VIEWER"].includes(role)) return null;
+  return {
+    email,
+    passwordHash,
+    role,
+    name: String(item.name ?? email.split("@")[0]).trim() || email,
+  };
+}
+
+function configuredUsers(): ConfiguredUser[] {
+  const raw = String(process.env.APP_USERS_JSON ?? "").trim();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const users = parsed.map(normalizeUser).filter((user): user is ConfiguredUser => Boolean(user));
+        if (users.length) return users;
+      }
+    } catch {
+      console.error("APP_USERS_JSON inválido; usando o acesso legado.");
+    }
+  }
+
+  const legacy = normalizeUser({
+    email: process.env.APP_LOGIN_EMAIL,
+    passwordHash: process.env.APP_LOGIN_PASSWORD_HASH,
+    name: "Representação Ekko",
+    role: "ADMIN",
+  });
+  return legacy ? [legacy] : [];
+}
+
+function configuredUser(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  return configuredUsers().find((user) => user.email === normalizedEmail) ?? null;
 }
 
 function authSecret() {
@@ -47,13 +91,12 @@ async function hmac(value: string) {
 }
 
 export async function verifyCredentials(email: string, password: string) {
-  const allowedEmail = configuredEmail();
-  const storedHash = String(process.env.APP_LOGIN_PASSWORD_HASH ?? "");
-  if (!allowedEmail || !storedHash || email.trim().toLowerCase() !== allowedEmail) return false;
+  const user = configuredUser(email);
+  if (!user) return null;
 
-  const [algorithm, iterationsText, saltText, expectedText] = storedHash.split(":");
+  const [algorithm, iterationsText, saltText, expectedText] = user.passwordHash.split(":");
   const iterations = Number(iterationsText);
-  if (algorithm !== "pbkdf2-sha256" || !Number.isInteger(iterations) || iterations < 100_000 || !saltText || !expectedText) return false;
+  if (algorithm !== "pbkdf2-sha256" || !Number.isInteger(iterations) || iterations < 100_000 || !saltText || !expectedText) return null;
 
   try {
     const material = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
@@ -62,9 +105,9 @@ export async function verifyCredentials(email: string, password: string) {
       material,
       256,
     ));
-    return constantTimeEqual(derived, fromBase64Url(expectedText));
+    return constantTimeEqual(derived, fromBase64Url(expectedText)) ? user : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -86,8 +129,9 @@ export async function verifySessionToken(token: string | undefined): Promise<Aut
     const expected = await hmac(encoded);
     if (!constantTimeEqual(expected, fromBase64Url(signatureText))) return null;
     const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(encoded))) as SessionPayload;
-    if (!payload.email || payload.email !== configuredEmail() || payload.expiresAt <= Date.now()) return null;
-    return { email: payload.email, name: "Representação Ekko", role: "ADMIN" };
+    if (!payload.email || payload.expiresAt <= Date.now()) return null;
+    const user = configuredUser(payload.email);
+    return user ? { email: user.email, name: user.name, role: user.role } : null;
   } catch {
     return null;
   }
